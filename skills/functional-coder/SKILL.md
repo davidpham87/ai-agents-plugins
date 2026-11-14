@@ -38,6 +38,10 @@ systems of pure functions that operate on simple, immutable data.
    Example tests check only what you remembered to think of. Generative PBT
    tests invariants, round-trips, idempotence, and state machines over
    thousands of synthetic inputs.
+8. **REPL-Driven PBT & Selective Execution**:
+   Iterate by evaluating single properties and data generators interactively
+   via nREPL (`clj-nrepl-eval`) or Python REPL. Scope runs to changed vars
+   during rapid iteration, reserving full test suites for final gates.
 
 ## Progressive Discovery & References
 
@@ -54,7 +58,7 @@ Delve into each principle in depth through dedicated reference guides:
 - [Naming & Semantics][ref-05]
   Etymological grounding, domain clarity, and globally qualified keys.
 - [Property-Based Testing][ref-06]
-  Invariants, shrinking, Hypothesis in Python, test.check in Clojure.
+  Invariants, REPL workflow, selective runs, Hypothesis, test.check.
 
 [ref-01]: references/01-simplicity-and-hammock-design.md
 [ref-02]: references/02-data-over-code-and-values.md
