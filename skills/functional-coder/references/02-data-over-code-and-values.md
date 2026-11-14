@@ -96,3 +96,40 @@ Clojure implements the **Epochal Time Model** via reference types:
 In all cases, reading a reference type (`@my-atom` or `(deref my-atom)`)
 yields an immutable value snapshot in constant time with **zero locks**.
 Readers never block writers, and writers never block readers.
+
+
+---
+
+## 4. Prefer Babashka (`bb`) and Python `cytoolz` Pipelines
+
+For standalone automation and CLI scripts, **prefer Babashka (`bb script.clj`)**
+over Python. Babashka gives instant startup, native Clojure immutable maps
+and vectors, threading macros (`->>`, `->`), and built-in `babashka.fs` /
+`babashka.process` without JVM boot lag.
+
+When Python is required (e.g., for `ast` inspection or `hypothesis`),
+imperative `for` loops with mutating accumulators (`res = []`, `d[k] = v`)
+reintroduce Place-Oriented Programming (PLOP). Mandate `cytoolz` for
+Clojure-style data transformations:
+
+* **Threading**: `pipe` (`->>` / `->` via `curried`) and `thread_first`.
+* **Sequence transforms**: `cytoolz.curried.map`, `filter`, `reduce`,
+  `groupby`, `pluck`.
+* **Immutable dict transforms**: `assoc`, `dissoc`, `merge`, `update_in`,
+  `valmap`, `keymap` (all return new dicts without mutating inputs).
+
+```python
+from cytoolz import pipe, merge, assoc, valmap
+from cytoolz.curried import map as cmap, filter as cfilter, groupby
+
+# Clojure (->> items (filter active?) (map price) (reduce + 0))
+total = pipe(
+    items,
+    cfilter(lambda it: it.get("item/qty", 0) > 0),
+    cmap(lambda it: it["item/price"] * it["item/qty"]),
+    sum,
+)
+```
+
+Prefer declarative `cytoolz` pipelines over manual `for` loops whenever
+transforming collections or associative maps.
