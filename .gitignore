@@ -1,1 +1,6 @@
 chat.md
+.#chat.md
+.hypothesis/
+.pytest_cache/
+__pycache__/
+*.pyc
