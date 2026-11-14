@@ -152,6 +152,17 @@ def test_prop_theoretical_makespan_inequality(
 # ---------------------------------------------------------------------------
 
 
+def assert_pipeline_invariants(
+    res: Dict[str, Any], expected_commits: int
+) -> None:
+    """Assert zero conflicts, 100% audit completeness, and commit order."""
+    m = res["metrics"]
+    assert m["conflict_count"] == 0
+    assert pure_verify_audit_completeness(res["commits"], res["audits"])
+    assert pure_verify_subteam_ordering(res["commits"])
+    assert m["total_commits"] == expected_commits
+
+
 @settings(
     max_examples=3,
     deadline=None,
@@ -164,52 +175,18 @@ def test_prop_theoretical_makespan_inequality(
 def test_prop_real_git_pipeline_schedule_and_invariants(
     num_subteams: int, increments: int
 ) -> None:
-    """Property test running real git worktrees and verifying all invariants.
-
-    Invariants checked across real git operations:
-    1. Zero merge conflicts across disjoint branches.
-    2. Audit completeness: 100% of commits audited.
-    3. Monotonic commit progression per subteam.
-    4. Async makespan < Sync makespan (speedup >= 1.0).
-    5. Throughput async > Throughput sync.
-    """
-    subteams = [f"st{i}" for i in range(num_subteams)]
+    """Verify real git worktree invariants and async speedup >= 1.2x."""
     cfg = pure_make_config(
-        subteams=subteams,
+        subteams=[f"st{i}" for i in range(num_subteams)],
         increments=increments,
         work_latency_sec=0.02,
         review_latency_sec=0.02,
         serialize_sync_teams=True,
     )
-
-    sync_res = run_sync_pipeline(cfg)
-    async_res = run_async_pipeline(cfg)
-
-    sync_m = sync_res["metrics"]
-    async_m = async_res["metrics"]
-
-    # 1. Zero git conflicts
-    assert sync_m["conflict_count"] == 0
-    assert async_m["conflict_count"] == 0
-
-    # 2. Audit completeness
-    assert pure_verify_audit_completeness(
-        sync_res["commits"], sync_res["audits"]
-    )
-    assert pure_verify_audit_completeness(
-        async_res["commits"], async_res["audits"]
-    )
-
-    # 3. Monotonic subteam ordering
-    assert pure_verify_subteam_ordering(sync_res["commits"])
-    assert pure_verify_subteam_ordering(async_res["commits"])
-
-    # 4. Total commit counts match expected: subteams * increments
-    expected_commits = num_subteams * increments
-    assert sync_m["total_commits"] == expected_commits
-    assert async_m["total_commits"] == expected_commits
-
-    # 5. Speedup >= 1.0 (async duration < sync duration)
-    speedup = pure_compute_speedup(sync_m, async_m)
-    assert speedup >= 1.2
+    sync_res, async_res = run_sync_pipeline(cfg), run_async_pipeline(cfg)
+    expected = num_subteams * increments
+    assert_pipeline_invariants(sync_res, expected)
+    assert_pipeline_invariants(async_res, expected)
+    sync_m, async_m = sync_res["metrics"], async_res["metrics"]
+    assert pure_compute_speedup(sync_m, async_m) >= 1.2
     assert async_m["throughput_cps"] > sync_m["throughput_cps"]
