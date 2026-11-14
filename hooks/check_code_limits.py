@@ -24,20 +24,24 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 def run_cljfmt_fix(file_path: Path) -> bool:
-    """Format Clojure file using cljfmt if available."""
+    """Format Clojure file using cljfmt or clojure-lsp fallback."""
+    if not file_path.exists():
+        return False
     cmd = shutil.which("cljfmt")
-    if not cmd or not file_path.exists():
-        return False
-    try:
-        res = subprocess.run(
-            [cmd, "fix", str(file_path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=10,
-        )
-        return res.returncode == 0
-    except (subprocess.SubprocessError, OSError):
-        return False
+    if cmd:
+        try:
+            res = subprocess.run([cmd, "fix", str(file_path)], timeout=10)
+            return res.returncode == 0
+        except (subprocess.SubprocessError, OSError):
+            pass
+    lsp = shutil.which("clojure-lsp")
+    if lsp:
+        try:
+            cmd_args = [lsp, "format", "--filenames", str(file_path)]
+            return subprocess.run(cmd_args, timeout=10).returncode == 0
+        except (subprocess.SubprocessError, OSError):
+            pass
+    return False
 
 
 def build_kondo_args(cmd: str, target: str) -> List[str]:
@@ -226,7 +230,7 @@ def check_kondo_fn_lengths(
     violations: List[str] = []
     for v in analysis.get("var-definitions", []):
         def_by = v.get("defined-by", "")
-        if "defn" in def_by or "fn" in def_by:
+        if any(k in def_by for k in ("defn", "fn", "defmulti")):
             row, end_row = v.get("row", 1), v.get("end-row", 1)
             length = end_row - row + 1
             if length > max_lines:
@@ -251,12 +255,22 @@ def check_kondo_golfing(analysis: Dict[str, Any]) -> List[str]:
     return violations
 
 
+def extract_kondo_errors(kondo_data: Dict[str, Any]) -> List[str]:
+    """Extract AST limit violations and syntax errors from clj-kondo."""
+    analysis = kondo_data.get("analysis", {})
+    errs = list(check_kondo_golfing(analysis))
+    errs.extend(check_kondo_fn_lengths(analysis))
+    for f in kondo_data.get("findings", []):
+        if f.get("level") == "error":
+            errs.append(f"Line {f.get('row', 1)}: {f.get('message')}")
+    return errs
+
+
 def check_clojure_ast_errors(source: str, label: str) -> List[str]:
     """Extract Clojure AST errors via clj-kondo or fallback."""
     kondo_data = run_clj_kondo(Path(label), content=source)
-    if kondo_data and "analysis" in kondo_data:
-        analysis = kondo_data["analysis"]
-        return check_kondo_golfing(analysis) + check_kondo_fn_lengths(analysis)
+    if kondo_data:
+        return extract_kondo_errors(kondo_data)
     forms = parse_clojure_forms(source)
     return detect_clojure_golfing(forms) + check_clojure_fn_lengths(forms)
 

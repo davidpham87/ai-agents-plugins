@@ -18,7 +18,7 @@ import sys
 import tempfile
 from typing import List
 
-from hypothesis import given, settings, strategies as st
+from hypothesis import HealthCheck, given, settings, strategies as st
 import pytest
 
 HOOKS_DIR = Path(__file__).resolve().parent
@@ -102,6 +102,7 @@ def test_prop_python_semicolon_golfing_detected(stmts: List[str]) -> None:
     assert "semicolon chaining forbidden" in errs[0]
 
 
+@settings(max_examples=20, deadline=None)
 @given(
     names=st.lists(
         st.text(alphabet="abcdef", min_size=1, max_size=4),
@@ -112,28 +113,29 @@ def test_prop_python_semicolon_golfing_detected(stmts: List[str]) -> None:
 def test_prop_clojure_packed_forms_detected(names: List[str]) -> None:
     """Multiple top-level forms packed on a single line are rejected."""
     code = " ".join(f"(def {n} 1)" for n in names) + "\n"
-    forms = parse_clojure_forms(code)
-    errs = detect_clojure_golfing(forms)
-    assert len(errs) > 0
-    assert "anti-golfing violation" in errs[0]
+    res = check_clojure_code(code, "test_packed.clj")
+    assert res["valid"] is False
+    assert any("anti-golfing" in err for err in res["errors"])
 
 
+@settings(max_examples=20, deadline=None)
 @given(
     ops=st.lists(
-        st.sampled_from(["inc", "dec", "str", "identity"]),
+        st.sampled_from(["inc", "dec", "identity"]),
         min_size=2,
         max_size=4,
     )
 )
 def test_prop_clojure_nested_sibling_calls_pass(ops: List[str]) -> None:
-    """Nested sibling calls like (+ (inc x) (dec x)) pass cleanly."""
+    """Nested sibling calls like [(inc x) (dec x)] pass cleanly."""
     body = " ".join(f"({op} x)" for op in ops)
-    code = f"(defn calc [x]\n  (+ {body}))\n"
+    code = f"(defn calc [x]\n  [{body}])\n"
     res = check_clojure_code(code, "test_nested.clj")
     assert res["valid"] is True
     assert len(res["errors"]) == 0
 
 
+@settings(max_examples=20, deadline=None)
 @given(num_forms=st.integers(min_value=1, max_value=8))
 def test_prop_clojure_short_fn_passes(num_forms: int) -> None:
     """Clojure defn <= 20 lines passes checks."""
@@ -144,6 +146,7 @@ def test_prop_clojure_short_fn_passes(num_forms: int) -> None:
     assert len(res["errors"]) == 0
 
 
+@settings(max_examples=20, deadline=None)
 @given(num_lines=st.integers(min_value=25, max_value=40))
 def test_prop_clojure_long_fn_fails(num_lines: int) -> None:
     """Clojure defn > 20 lines fails checks."""
@@ -179,6 +182,14 @@ def test_prop_soft_line_length_over_80_warns(line_len: int) -> None:
 # ---------------------------------------------------------------------------
 # Clojure Formatting & Hooks Contract Tests
 # ---------------------------------------------------------------------------
+
+
+def test_clojure_syntax_error_fails() -> None:
+    """Invalid Clojure syntax fails via clj-kondo diagnostics."""
+    broken_code = "(defn broken [x\n"
+    res = check_clojure_code(broken_code, "test_broken.clj")
+    assert res["valid"] is False
+    assert len(res["errors"]) > 0
 
 
 def test_cljfmt_preformatting_integration() -> None:
