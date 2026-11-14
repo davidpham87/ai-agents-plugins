@@ -24,8 +24,10 @@ systems of pure functions that operate on simple, immutable data.
 3. **Data over Code & Classes**:
    Prefer 100 functions on one universal data structure over 10 functions
    on 10 specific classes (Alan Perlis). Avoid premature class hierarchies.
-   In Python, mandate `cytoolz` (`pipe`, `thread_first`, `map`, `filter`,
-   `reduce`, `assoc`, `merge`, `groupby`, `valmap`) over manual `for` loops.
+   Prefer Babashka (`bb script.clj`) for standalone scripts over Python;
+   when Python is required, mandate `cytoolz` (`pipe`, `thread_first`,
+   `map`, `filter`, `reduce`, `assoc`, `merge`, `groupby`, `valmap`) over
+   manual `for` loops.
 4. **Open Polymorphism**:
    Decouple operations from types using Clojure multimethods (dispatching on
    arbitrary functions) and protocols. Solve the expression problem openly.

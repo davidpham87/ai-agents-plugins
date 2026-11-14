@@ -100,12 +100,17 @@ Readers never block writers, and writers never block readers.
 
 ---
 
-## 4. Python `cytoolz` Pipelines over Manual Loops
+## 4. Prefer Babashka (`bb`) and Python `cytoolz` Pipelines
 
-In Python, imperative `for` loops with mutating accumulators (`res = []`,
-`d[k] = v`) reintroduce Place-Oriented Programming (PLOP). To apply Alan
-Perlis's epigram and Rich Hickey's value semantics in Python, mandate
-`cytoolz` for data transformations:
+For standalone automation and CLI scripts, **prefer Babashka (`bb script.clj`)**
+over Python. Babashka gives instant startup, native Clojure immutable maps
+and vectors, threading macros (`->>`, `->`), and built-in `babashka.fs` /
+`babashka.process` without JVM boot lag.
+
+When Python is required (e.g., for `ast` inspection or `hypothesis`),
+imperative `for` loops with mutating accumulators (`res = []`, `d[k] = v`)
+reintroduce Place-Oriented Programming (PLOP). Mandate `cytoolz` for
+Clojure-style data transformations:
 
 * **Threading**: `pipe` (`->>` / `->` via `curried`) and `thread_first`.
 * **Sequence transforms**: `cytoolz.curried.map`, `filter`, `reduce`,
