@@ -9,6 +9,10 @@ swarm collaboration.
 ```text
 .
 ├── plugin.json                 # Plugin manifest (required)
+├── hooks.json                  # Antigravity lifecycle hooks configuration
+├── hooks/
+│   ├── check_code_limits.py    # AST & LSP code limit enforcement hook
+│   └── test_check_code_limits_pbt.py # Hypothesis property-based tests
 ├── rules/
 │   └── AGENTS.md               # Always-on directives & harness rules
 └── skills/
@@ -39,6 +43,8 @@ Always-on directives loaded for every agent session in the workspace:
   targeted message board etiquette, and the multi-family Pro Ultimate Gate.
 - **Simplicity Score Gate**: Evaluates code along 5 un-complected dimensions
   (state/time, data/logic, decoupling) to prevent complected braids.
+- **Readability & AST Code Limits**: Enforces <= 20 lines per function, <= 500
+  lines per file, anti-golfing rules, and `cljfmt` pre-formatting via hooks.
 - **Graphics and UI Wireframes**: Mandates ASCII-art wireframes for all visual
   or UI layouts, constrained to 80 characters per line.
 
@@ -62,6 +68,13 @@ On-demand operational runbook and toolset for multi-agent swarms:
 - **Benchmarking Throughput**:
   Harness scripts and empirical reports measuring pipelined async speedups
   over synchronous request-response lockstep.
+
+### 4. Lifecycle Hooks (`hooks.json` & `hooks/`)
+Automated Antigravity lifecycle hooks enforcing code limits:
+- **`PostToolUse`**: Validates file line limits and code readability after
+  `write_file` or `edit_file`.
+- **`PreToolUse`**: Enforces code limits and gates `git commit` commands,
+  preventing complected or golfed code from entering version control.
 
 ## Validate and Install
 

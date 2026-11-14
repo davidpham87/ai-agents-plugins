@@ -109,3 +109,21 @@ illustrated:
   boundary.
 - Use structured box-drawing characters or standard ASCII symbols (`+`, `-`,
   `|`, `[ ]`, `( )`) for clarity and deterministic rendering across terminals.
+
+## 5. Readability & AST Code Limits
+
+To maintain codebase readability and prevent bloated or complected code units,
+all Clojure and Python source code must comply with AST-verified limits:
+- Function length limit: maximum 20 lines of code per function definition
+  (`defn`, `defn-`, `fn` in Clojure; `def`, `async def` in Python).
+- File/module limit: maximum 500 lines per namespace or module file.
+- Anti-golfing mandate: strictly forbid semicolon-chained Python statements,
+  multi-top-level forms packed onto a single line, or dense multi-statement
+  one-liners. Code must remain unrolled, explicit, and human-readable.
+- Formatter precedence: always format Clojure code with `cljfmt` prior to
+  evaluating AST or LSP static checks (`clj-kondo`, `clojure-lsp`,
+  Python `ast`).
+- Line length soft limit: 80 characters per line maximum (emits warnings;
+  formatting is strongly enforced without breaking non-fatal builds).
+- Lifecycle enforcement: automated via Antigravity hooks (`hooks.json` and
+  `hooks/check_code_limits.py`) gating file edits and commit commands.
