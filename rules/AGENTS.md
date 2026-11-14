@@ -55,7 +55,7 @@ Multi-agent coordination inside swarms must avoid synchronous lockstep and
 idle waiting:
 - Subteam Couple: each feature stream is owned by a paired subteam composed
   of an Executioner (`gemini-4-hydrogen-medium`) and a Reviewer/Auditor
-  (`gemini-4-hydrogen-medium`).
+  (`gemini-4-carbon-medium`).
 - Controlled Blast Radius:
   - Executioners must strictly scope every commit and change to a minimal,
     explicit blast radius.
@@ -94,7 +94,7 @@ idle waiting:
   - Prior to merging to trunk or finishing high-stakes deliveries, final
     verification must run through a heterogeneous multi-model panel.
   - Swarm panel: employ Pro models from diverse model families (e.g.,
-    Gemini 4 Hydrogen, Claude Opus 5.5, and GPT-OSS 120B) to audit logic,
+    Gemini 4 Carbon, Claude Opus 5.5, and GPT-OSS 120B) to audit logic,
     security, and architectural soundness from contrasting perspectives.
   - Simplicity scoring: panel members must compute and report the Simplicity
     Score, blocking any code with unnecessary braids or hidden coupling.

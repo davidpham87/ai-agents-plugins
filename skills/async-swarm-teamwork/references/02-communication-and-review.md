@@ -121,7 +121,7 @@ is returned with a `[FIX <sha>]` tag for un-braiding and simplification.
 ### Multi-Family Review Panel
 A single model family may suffer from shared blind spots, hallucination
 patterns, or stylistic biases. The panel brings together:
-- **Google Gemini Family** (e.g., `gemini-4-hydrogen-medium` or Pro):
+- **Google Gemini Family** (e.g., `gemini-4-carbon-medium` / Pro):
   Deep systemic context, tool integration, and schema verification.
 - **Anthropic Claude Family** (e.g., `claude-opus-5.5`):
   Nuanced safety, formal logical reasoning, and refactoring rigor.

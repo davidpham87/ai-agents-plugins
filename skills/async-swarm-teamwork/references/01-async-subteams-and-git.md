@@ -14,7 +14,7 @@ specialized subteams:
 - **Executioner** (`gemini-4-hydrogen-medium`):
   Optimized for rapid generation, refactoring, and test writing. Authors
   focused increments and makes atomic Git commits.
-- **Reviewer / Auditor** (`gemini-4-hydrogen-medium`):
+- **Reviewer / Auditor** (`gemini-4-carbon-medium`):
   Optimized for deep architectural reasoning, edge-case detection, and
   property verification. Audits committed SHAs without interrupting authoring.
 
