@@ -34,8 +34,11 @@ Always-on directives loaded for every agent session in the workspace:
   testing via `hypothesis` (Python) and `malli`/`test.check` (Clojure), with
   selective test runs during rapid inner-loop iteration.
 - **Asynchronous Swarms**: Outlines paired subteam couples (Executioner +
-  Reviewer), non-blocking Git commit/audit flows, shared nREPL sessions,
+  Reviewer), controlled blast radius, non-breaking evolution via accretion,
+  consumer contract tests, non-blocking Git flows, shared nREPL sessions,
   targeted message board etiquette, and the multi-family Pro Ultimate Gate.
+- **Simplicity Score Gate**: Evaluates code along 5 un-complected dimensions
+  (state/time, data/logic, decoupling) to prevent complected braids.
 - **Graphics and UI Wireframes**: Mandates ASCII-art wireframes for all visual
   or UI layouts, constrained to 80 characters per line.
 
@@ -54,8 +57,8 @@ On-demand operational runbook and toolset for multi-agent swarms:
   dedicated `subteam/<id>/work` branches, and conflict-free pipelines.
 - **Communication & Review (`references/02-communication-and-review.md`)**:
   Structured board tags (`[READY]`, `[PASS]`, `[FIX]`, `[BLOCK]`, `[done]`),
-  targeted doorbell notifications, and the multi-family Pro Ultimate Review
-  Gate (Gemini 4 Hydrogen, Claude Opus 5.5, GPT-OSS 120B).
+  targeted doorbell notifications, Rich Hickey Simplicity Score Gate, and the
+  multi-family Pro Ultimate Review Gate (Gemini, Claude, GPT).
 - **Benchmarking Throughput**:
   Harness scripts and empirical reports measuring pipelined async speedups
   over synchronous request-response lockstep.

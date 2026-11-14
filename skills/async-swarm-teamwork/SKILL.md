@@ -21,6 +21,7 @@ Activate this skill whenever:
 - Running non-blocking commit-and-audit verification loops.
 - Sharing interactive nREPL evaluation ports across subteam agents.
 - Enforcing selective test execution during iterative fast development.
+- Calculating Rich Hickey Simplicity Scores to prevent complected braids.
 - Benchmarking asynchronous vs synchronous swarm performance.
 - Conducting an Ultimate Review Gate using heterogeneous Pro model families.
 
@@ -69,10 +70,11 @@ Activate this skill whenever:
   blocking each other.
 
 ### 3. Non-Blocking Commit Pipeline & Selective Test Execution
-- The Executioner commits each functional increment and immediately posts
-  `@<reviewer> [READY <sha> nrepl:<port>] <files>`.
-- The Executioner does NOT block or sleep waiting for approval; it moves
-  straight into the subsequent increment.
+- The Executioner scopes each change to a minimal, explicit blast radius
+  (disjoint files, atomic diffs) and commits without blocking.
+- The Executioner immediately posts `@<reviewer> [READY <sha> nrepl:<port>]`.
+- Changes evolve via accretion (provide more, require less) and enforce
+  downstream compatibility via consumer/subscriber contract tests.
 - Selective test runs (targeted vars, namespaces, or changed test files) are
   enforced during fast iteration; full-suite execution is reserved for gates.
 - The Reviewer audits each SHA asynchronously.
@@ -88,7 +90,7 @@ Activate this skill whenever:
 - Subteams, git shares, nREPL workflow, and conflict resolution:
   See [01-async-subteams-and-git.md](
   ./references/01-async-subteams-and-git.md).
-- Messaging protocol, selective testing, and multi-family Pro review gate:
+- Messaging protocol, selective tests, Simplicity Gate, and Pro review:
   See [02-communication-and-review.md](
   ./references/02-communication-and-review.md).
 - Benchmarking throughput & latency (async pipelined vs synchronous lockstep):
@@ -106,5 +108,6 @@ Activate this skill whenever:
 5. [ ] Execute selective tests during rapid inner loop iteration.
 6. [ ] Make granular commits and broadcast `[READY <sha>]` to reviewer.
 7. [ ] Triage reviewer feedback (`[FIX <sha>]`) and apply amendments.
-8. [ ] Convene heterogeneous multi-model Pro panel for the Ultimate Review.
-9. [ ] Validate full test suites and plugin (`agy plugin validate . --strict`).
+8. [ ] Audit Simplicity Score (state/time, data/logic, decoupling >= 8/10).
+9. [ ] Convene heterogeneous multi-model Pro panel for the Ultimate Review.
+10. [ ] Validate full test suites and plugin (`agy plugin validate . --strict`).

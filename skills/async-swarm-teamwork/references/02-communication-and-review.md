@@ -66,6 +66,14 @@ severe development bottlenecks.
   1000+ generative runs), and `agy plugin validate . --strict` are reserved for
   pre-merge sign-off and the Ultimate Review Gate.
 
+### Non-Breaking Design & Consumer Contract Testing
+Systems must evolve strictly via accretion (Rich Hickey's *Spec-ulation*):
+- **Provide More, Require Less**: Never mutate, remove, or tighten existing
+  schema keys or consumer contracts; add optional keys or new dispatches.
+- **Contract Tests**: Require targeted consumer/subscriber contract tests
+  asserting that legacy subscribers and downstream consumers process evolved
+  producer payloads without errors.
+
 ### Reviewer Audit Checklist
 When reviewing an increment at `<sha>`, the Auditor evaluates:
 1. **Line Length & Formatting**: Every line must be $\le 80$ characters.
@@ -75,7 +83,12 @@ When reviewing an increment at `<sha>`, the Auditor evaluates:
    property tests (`hypothesis` or `test.check`/`malli`).
 4. **Interactive REPL Verification**: Validate pure functions and schemas over
    the shared subteam nREPL port when applicable.
-5. **Plugin Integrity**: Running `agy plugin validate . --strict` must pass
+5. **Non-Breaking Evolution**: Verify changes evolve via accretion and pass
+   consumer/subscriber contract tests.
+6. **Simplicity Score Gate**: Compute and report Rich Hickey Simplicity Score
+   checking state/time, data/behavior, I/O/logic, mechanism/policy, and module
+   decoupling; flag complected code.
+7. **Plugin Integrity**: Running `agy plugin validate . --strict` must pass
    without errors.
 
 ## 4. The Ultimate Review Gate
@@ -83,6 +96,27 @@ When reviewing an increment at `<sha>`, the Auditor evaluates:
 Prior to trunk integration or release, deliverables must pass through the
 Ultimate Review Gate. This gate ensures verification across diverse reasoning
 paradigms by engaging Pro-tier models from distinct provider families.
+
+### The Rich Hickey Simplicity Score Gate
+Both subteam reviewers and the multi-family Pro panel must calculate and
+report an objective Simplicity Score based on *Simple Made Easy*.
+
+The score rates 5 un-complected architectural dimensions (0 to 2 points each,
+totaling 0 to 10):
+1. **State vs Time** (2 pts): Immutable values and epochal progression; no
+   in-place mutation or hidden temporal coupling.
+2. **Data vs Behavior** (2 pts): Plain transparent data structures (maps/sets);
+   functions operate over data, avoiding class encapsulation braids.
+3. **I/O vs Pure Logic** (2 pts): Side-effects and I/O isolated cleanly at the
+   system boundaries; computation core consists of pure functions.
+4. **Mechanism vs Policy** (2 pts): General-purpose mechanisms decoupled from
+   specific domain policies, enabling open composition.
+5. **Module Decoupling** (2 pts): Clean, acyclic module dependencies without
+   back-channel or circular imports.
+
+A minimum Simplicity Score of 8/10 with no zero scores in any dimension is
+mandatory for passing the Ultimate Review Gate. Any braided or complected code
+is returned with a `[FIX <sha>]` tag for un-braiding and simplification.
 
 ### Multi-Family Review Panel
 A single model family may suffer from shared blind spots, hallucination
