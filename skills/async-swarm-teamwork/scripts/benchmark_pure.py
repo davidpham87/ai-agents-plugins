@@ -9,6 +9,11 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Sequence, Tuple
 
+from cytoolz import groupby, pipe
+from cytoolz.curried import filter as cfilter
+from cytoolz.curried import map as cmap
+from cytoolz.curried import valmap as cvalmap
+
 
 def pure_make_config(
     subteams: Sequence[str] = ("fc", "sw", "bm"),
@@ -49,7 +54,12 @@ def pure_calculate_lag(commit_time: float, audit_start: float) -> float:
 
 def pure_lag_stats(audits: Sequence[Dict[str, Any]]) -> Tuple[float, float]:
     """Compute mean and max reviewer lag from audit events."""
-    lags = [float(a["lag_sec"]) for a in audits if "lag_sec" in a]
+    lags = pipe(
+        audits,
+        cfilter(lambda a: "lag_sec" in a),
+        cmap(lambda a: float(a["lag_sec"])),
+        list,
+    )
     mean_lag = sum(lags) / len(lags) if lags else 0.0
     max_lag = max(lags) if lags else 0.0
     return round(mean_lag, 4), round(max_lag, 4)
@@ -92,20 +102,25 @@ def pure_verify_audit_completeness(
     commits: Sequence[Dict[str, Any]], audits: Sequence[Dict[str, Any]]
 ) -> bool:
     """Verify that every committed SHA was audited exactly once."""
-    commit_shas = {c["sha"] for c in commits}
-    audit_shas = {a["sha"] for a in audits}
+    commit_shas = pipe(commits, cmap(lambda c: c["sha"]), set)
+    audit_shas = pipe(audits, cmap(lambda a: a["sha"]), set)
     return commit_shas == audit_shas and len(commits) == len(audits)
+
+
+def _strictly_monotonic(indices: Sequence[int]) -> bool:
+    """Return True when indices are sorted and unique."""
+    vals = list(indices)
+    return vals == sorted(vals) and len(vals) == len(set(vals))
 
 
 def pure_verify_subteam_ordering(events: Sequence[Dict[str, Any]]) -> bool:
     """Verify per-subteam commit indices are strictly monotonic."""
-    by_subteam: Dict[str, List[int]] = {}
-    for ev in events:
-        by_subteam.setdefault(ev["subteam"], []).append(ev["idx"])
-    for indices in by_subteam.values():
-        if indices != sorted(indices) or len(indices) != len(set(indices)):
-            return False
-    return True
+    return pipe(
+        events,
+        lambda evs: groupby("subteam", evs),
+        cvalmap(lambda grp: pipe(grp, cmap(lambda e: e["idx"]), list)),
+        lambda m: all(cmap(_strictly_monotonic, m.values())),
+    )
 
 
 def _table_row(label: str, sync_val: str, async_val: str) -> str:
@@ -126,10 +141,12 @@ def _table_metric_rows(
         ("Max Reviewer Lag (s)", "max_reviewer_lag_sec", ".4f"),
         ("Git Conflicts", "conflict_count", "d"),
     ]
-    return [
-        _table_row(lbl, f"{sync_m[k]:{fmt}}", f"{async_m[k]:{fmt}}")
-        for lbl, k, fmt in specs
-    ]
+    return pipe(
+        specs,
+        cmap(lambda s: _table_row(s[0], f"{sync_m[s[1]]:{s[2]}}",
+                                  f"{async_m[s[1]]:{s[2]}}")),
+        list,
+    )
 
 
 def format_summary_table(
