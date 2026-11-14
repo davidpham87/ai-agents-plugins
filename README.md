@@ -22,6 +22,9 @@ swarm collaboration.
     │   ├── SKILL.md            # Swarm execution patterns and workflows
     │   ├── scripts/            # Throughput & latency benchmarking harness
     │   └── references/         # In-depth runbooks and benchmark data
+    ├── problem-solving/        # Polya heuristics & SGU skeptical auditing
+    │   ├── SKILL.md            # 4-step workflow & bias/fallacy checks
+    │   └── references/         # Polya steps, heuristics, biases, fallacies
     └── example-skill/
         └── SKILL.md            # On-demand skill template
 ```
@@ -69,7 +72,17 @@ On-demand operational runbook and toolset for multi-agent swarms:
   Harness scripts and empirical reports measuring pipelined async speedups
   over synchronous request-response lockstep.
 
-### 4. Lifecycle Hooks (`hooks.json` & `hooks/`)
+### 4. Problem-Solving Skill (`skills/problem-solving/`)
+On-demand reasoning skill pairing George Polya (*How to Solve It*) with Dr.
+Steven Novella (*The Skeptics' Guide to the Universe*):
+- **Polya Steps & Heuristics (`references/01-*.md`, `02-*.md`)**:
+  Structured 4-phase problem solving and classic heuristics (working backwards,
+  auxiliary problems, generalization, invariants).
+- **Skeptical Auditing (`references/03-*.md`, `04-*.md`)**:
+  Cognitive bias countermeasures, logical fallacy detection, falsifiability,
+  and Occam's razor engineering checklists.
+
+### 5. Lifecycle Hooks (`hooks.json` & `hooks/`)
 Automated Antigravity lifecycle hooks enforcing code limits:
 - **`PostToolUse`**: Validates file line limits and code readability after
   `write_file` or `edit_file`.

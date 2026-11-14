@@ -127,3 +127,10 @@ all Clojure and Python source code must comply with AST-verified limits:
   formatting is strongly enforced without breaking non-fatal builds).
 - Lifecycle enforcement: automated via Antigravity hooks (`hooks.json` and
   `hooks/check_code_limits.py`) gating file edits and commit commands.
+
+## 6. Problem-Solving & Skeptical Auditing
+
+Activate the `problem-solving` skill for non-trivial debugging, design, and
+root-cause analysis: pair George Polya's 4-step heuristics (*How to Solve It*)
+with Dr. Steven Novella's cognitive bias and logical fallacy checks (*Skeptics'
+Guide to the Universe*) to prevent premature conclusions.
