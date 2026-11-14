@@ -9,6 +9,7 @@ swarm collaboration.
 ```text
 .
 ├── plugin.json                 # Plugin manifest (required)
+├── bb.edn                      # Babashka deps (malli, test.check, spec.alpha)
 ├── hooks.json                  # Antigravity lifecycle hooks configuration
 ├── hooks/
 │   ├── check_code_limits.py    # AST & LSP code limit enforcement hook

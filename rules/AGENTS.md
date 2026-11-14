@@ -12,7 +12,9 @@ Follow functional programming paradigms inspired by Rich Hickey:
   automation scripts instead of Python; when Python is required (e.g., `ast`,
   `hypothesis`), use `cytoolz` (`pipe`, `map`, `filter`, `reduce`, `assoc`,
   `merge`, `groupby`, `valmap`) for Clojure-style pipelines instead of manual
-  `for` loops.
+  `for` loops. Global Babashka deps (`metosin/malli`,
+  `org.clojure/test.check`, `org.clojure/spec.alpha`) are available via
+  `~/.babashka/bb.edn` (`BABASHKA_CLASSPATH`) and local `bb.edn`.
 - Polymorphism via data: favor multimethods and protocols over class
   inheritance.
 - Schema à la carte: specify schemas flexibly where needed (e.g., Malli or
