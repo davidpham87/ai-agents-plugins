@@ -4,9 +4,10 @@ Verifies:
 1. Function length limits (<=20 pass, >20 fail for Python and Clojure).
 2. File length limits (<=500 pass, >500 fail).
 3. Anti-golfing detection (semicolons in Python, packed forms in Clojure).
-4. Soft 80-character line warnings.
-5. cljfmt pre-formatting integration.
-6. hooks.json stdin/stdout contract compliance.
+4. Nested Clojure sibling expressions pass without false positives.
+5. Soft 80-character line warnings.
+6. cljfmt pre-formatting integration.
+7. hooks.json stdin/stdout contract and controlled blast radius.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from check_code_limits import (  # noqa: E402
     handle_post_tool_use,
     handle_pre_tool_use,
     handle_stop,
+    parse_clojure_forms,
     process_hook_payload,
     run_cljfmt_fix,
 )
@@ -46,7 +48,7 @@ from check_code_limits import (  # noqa: E402
 
 @given(body_lines=st.integers(min_value=1, max_value=18))
 def test_prop_python_fn_within_limit_passes(body_lines: int) -> None:
-    """Python functions <= 20 lines (signature + doc + body) pass limit."""
+    """Python functions <= 20 lines pass limit."""
     body = "\n".join(f"    x_{i} = {i}" for i in range(body_lines))
     code = f"def sample_fn():\n{body}\n    return x_0\n"
     res = check_python_code(code, "test_valid.py")
@@ -81,7 +83,7 @@ def test_prop_file_line_count_fail(total_lines: int) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Anti-Golfing PBT
+# Anti-Golfing & Clojure Form PBT
 # ---------------------------------------------------------------------------
 
 
@@ -109,16 +111,27 @@ def test_prop_python_semicolon_golfing_detected(stmts: List[str]) -> None:
 )
 def test_prop_clojure_packed_forms_detected(names: List[str]) -> None:
     """Multiple top-level forms packed on a single line are rejected."""
-    packed_line = " ".join(f"(def {n} 1)" for n in names)
-    lines = [packed_line]
-    errs = detect_clojure_golfing(lines)
+    code = " ".join(f"(def {n} 1)" for n in names) + "\n"
+    forms = parse_clojure_forms(code)
+    errs = detect_clojure_golfing(forms)
     assert len(errs) > 0
     assert "anti-golfing violation" in errs[0]
 
 
-# ---------------------------------------------------------------------------
-# Clojure AST Form & Function Length PBT
-# ---------------------------------------------------------------------------
+@given(
+    ops=st.lists(
+        st.sampled_from(["inc", "dec", "str", "identity"]),
+        min_size=2,
+        max_size=4,
+    )
+)
+def test_prop_clojure_nested_sibling_calls_pass(ops: List[str]) -> None:
+    """Nested sibling calls like (+ (inc x) (dec x)) pass cleanly."""
+    body = " ".join(f"({op} x)" for op in ops)
+    code = f"(defn calc [x]\n  (+ {body}))\n"
+    res = check_clojure_code(code, "test_nested.clj")
+    assert res["valid"] is True
+    assert len(res["errors"]) == 0
 
 
 @given(num_forms=st.integers(min_value=1, max_value=8))
@@ -146,9 +159,7 @@ def test_prop_clojure_long_fn_fails(num_lines: int) -> None:
 # ---------------------------------------------------------------------------
 
 
-@given(
-    line_len=st.integers(min_value=1, max_value=80),
-)
+@given(line_len=st.integers(min_value=1, max_value=80))
 def test_prop_soft_line_length_under_80_no_warnings(line_len: int) -> None:
     """Lines <= 80 characters produce zero warnings."""
     lines = ["a" * line_len + "\n"]
@@ -156,9 +167,7 @@ def test_prop_soft_line_length_under_80_no_warnings(line_len: int) -> None:
     assert len(warnings) == 0
 
 
-@given(
-    line_len=st.integers(min_value=81, max_value=120),
-)
+@given(line_len=st.integers(min_value=81, max_value=120))
 def test_prop_soft_line_length_over_80_warns(line_len: int) -> None:
     """Lines > 80 characters produce soft warnings without blocking."""
     lines = ["x" * line_len + "\n"]
@@ -187,29 +196,50 @@ def test_cljfmt_preformatting_integration() -> None:
         tmp_path.unlink(missing_ok=True)
 
 
-def test_hooks_json_contract_pre_post_stop() -> None:
-    """Verify input/output contracts for PreToolUse, PostToolUse, and Stop."""
-    # PreToolUse non-git command: allow
-    pre_payload = json.dumps({
+def test_hooks_pre_tool_use_allow() -> None:
+    """PreToolUse allows non-commit commands."""
+    payload = json.dumps({
         "toolCall": {
             "name": "run_command",
-            "args": {"CommandLine": "ls -la"},
+            "args": {"CommandLine": "git status"},
         }
     })
-    pre_out = json.loads(process_hook_payload("PreToolUse", pre_payload))
-    assert pre_out["decision"] == "allow"
+    out = json.loads(process_hook_payload("PreToolUse", payload))
+    assert out["decision"] == "allow"
 
-    # PostToolUse: returns empty dict {}
-    post_payload = json.dumps({
+
+def test_hooks_pre_tool_use_deny_git_commit() -> None:
+    """PreToolUse denies git commit if workspace has violations."""
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        bad_file = tmp / "bad.py"
+        bad_file.write_text("a = 1; b = 2\n", encoding="utf-8")
+        payload = json.dumps({
+            "toolCall": {
+                "name": "run_command",
+                "args": {"CommandLine": "git commit -m test"},
+            },
+            "cwd": str(tmp),
+        })
+        out = json.loads(process_hook_payload("PreToolUse", payload))
+        assert out["decision"] == "deny"
+        assert "semicolon" in out["reason"]
+
+
+def test_hooks_post_tool_use_contract() -> None:
+    """PostToolUse always returns an empty JSON object."""
+    payload = json.dumps({
         "toolCall": {
             "name": "write_file",
-            "args": {"Path": "dummy.py"},
+            "args": {"Path": "clean.py"},
         }
     })
-    post_out = json.loads(process_hook_payload("PostToolUse", post_payload))
-    assert post_out == {}
+    out = json.loads(process_hook_payload("PostToolUse", payload))
+    assert out == {}
 
-    # Stop with continuationActive: allow
-    stop_payload = json.dumps({"continuationActive": True})
-    stop_out = json.loads(process_hook_payload("Stop", stop_payload))
-    assert stop_out["decision"] == "allow"
+
+def test_hooks_stop_contract() -> None:
+    """Stop allows agent to exit when continuationActive is True."""
+    payload = json.dumps({"continuationActive": True})
+    out = json.loads(process_hook_payload("Stop", payload))
+    assert out["decision"] == "allow"

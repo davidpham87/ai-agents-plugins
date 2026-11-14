@@ -16,7 +16,6 @@ import io
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -173,15 +172,15 @@ def check_clojure_fn_lengths(
     return violations
 
 
-def detect_clojure_golfing(lines: Sequence[str]) -> List[str]:
-    """Reject multiple top-level forms packed into a single line."""
+def detect_clojure_golfing(forms: Sequence[Dict[str, Any]]) -> List[str]:
+    """Reject multiple top-level forms sharing the same line number."""
     violations: List[str] = []
-    pattern = re.compile(r"\)\s*\(")
-    for idx, line in enumerate(lines, start=1):
-        stripped = line.strip()
-        if not stripped.startswith(";") and pattern.search(stripped):
+    for i in range(1, len(forms)):
+        prev, curr = forms[i - 1], forms[i]
+        if curr["start"] <= prev["end"]:
             violations.append(
-                f"Line {idx}: anti-golfing violation (multiple forms on line)"
+                f"Line {curr['start']}: anti-golfing violation "
+                "(multiple top-level forms on line)"
             )
     return violations
 
@@ -195,8 +194,8 @@ def check_clojure_code(
     file_err = check_file_line_count(lines)
     if file_err:
         hard_errors.append(file_err)
-    hard_errors.extend(detect_clojure_golfing(lines))
     forms = parse_clojure_forms(source_code)
+    hard_errors.extend(detect_clojure_golfing(forms))
     hard_errors.extend(check_clojure_fn_lengths(forms))
     return {
         "file": file_label,
@@ -242,22 +241,77 @@ def check_workspace(root: Path) -> List[Dict[str, Any]]:
     return [r for r in results if not r["valid"] or r["warnings"]]
 
 
+def filter_valid_paths(root: Path, names: Sequence[str]) -> List[Path]:
+    """Filter relative file paths for valid code extensions."""
+    valid_exts = {".py", ".clj", ".cljs", ".cljc"}
+    res: List[Path] = []
+    for n in names:
+        p = root / n
+        if p.suffix.lower() in valid_exts and p.is_file():
+            res.append(p)
+    return res
+
+
+def get_staged_git_files(repo_dir: Path) -> Optional[List[Path]]:
+    """Get list of staged files for controlled blast radius."""
+    try:
+        cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"]
+        res = subprocess.run(
+            cmd, cwd=str(repo_dir), stdout=subprocess.PIPE, text=True, timeout=5
+        )
+        if res.returncode != 0:
+            return None
+        lines = [line.strip() for line in res.stdout.splitlines()]
+        return filter_valid_paths(repo_dir, lines)
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
+def get_modified_git_files(repo_dir: Path) -> Optional[List[Path]]:
+    """Get modified and untracked files for stop gate check."""
+    try:
+        cmd = ["git", "status", "--porcelain"]
+        res = subprocess.run(
+            cmd, cwd=str(repo_dir), stdout=subprocess.PIPE, text=True, timeout=5
+        )
+        if res.returncode != 0:
+            return None
+        lines = [line[3:].strip() for line in res.stdout.splitlines()]
+        return filter_valid_paths(repo_dir, lines)
+    except (subprocess.SubprocessError, OSError):
+        return None
+
+
+def format_violation_reasons(violations: Sequence[Dict[str, Any]]) -> str:
+    """Format violations into a readable diagnostic string."""
+    reasons = [f"{v['file']}: {'; '.join(v['errors'])}" for v in violations]
+    return f"Code limits violated: {' | '.join(reasons)}"
+
+
+def check_commit_pre_tool(payload: Dict[str, Any]) -> Optional[str]:
+    """Return denial reason if git commit violates limits."""
+    workspace = Path(payload.get("cwd", ".")).resolve()
+    staged = get_staged_git_files(workspace)
+    targets = (
+        [check_single_file(p) for p in staged]
+        if staged is not None
+        else check_workspace(workspace)
+    )
+    violations = [r for r in targets if not r["valid"]]
+    return format_violation_reasons(violations) if violations else None
+
+
 def handle_pre_tool_use(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Gate git commit tool calls if code limits are violated."""
+    """Gate git commit tool calls with controlled blast radius."""
     tool_call = payload.get("toolCall", {})
     if tool_call.get("name") != "run_command":
         return {"decision": "allow"}
     cmd = tool_call.get("args", {}).get("CommandLine", "")
     if "git commit" not in cmd:
         return {"decision": "allow"}
-    workspace = Path(payload.get("cwd", ".")).resolve()
-    violations = [r for r in check_workspace(workspace) if not r["valid"]]
-    if violations:
-        reasons = [f"{v['file']}: {'; '.join(v['errors'])}" for v in violations]
-        return {
-            "decision": "deny",
-            "reason": f"Code limits violated: {' | '.join(reasons)}",
-        }
+    reason = check_commit_pre_tool(payload)
+    if reason:
+        return {"decision": "deny", "reason": reason}
     return {"decision": "allow"}
 
 
@@ -272,11 +326,17 @@ def handle_post_tool_use(payload: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_stop(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Check workspace integrity before agent stop."""
+    """Check workspace integrity before agent stop with blast radius."""
     if payload.get("continuationActive"):
         return {"decision": "allow"}
     workspace = Path(payload.get("cwd", ".")).resolve()
-    violations = [r for r in check_workspace(workspace) if not r["valid"]]
+    modified = get_modified_git_files(workspace)
+    targets = (
+        [check_single_file(p) for p in modified]
+        if modified is not None
+        else check_workspace(workspace)
+    )
+    violations = [r for r in targets if not r["valid"]]
     if violations:
         return {
             "decision": "continue",
