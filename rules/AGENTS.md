@@ -16,10 +16,13 @@ Follow functional programming paradigms inspired by Rich Hickey:
   functions operating on 10 data structures.
 - Semantic naming: make data keys and function names convey exact domain
   intent.
+- REPL-driven development: prefer interactive evaluation via `clj-nrepl-eval`
+  (`clj-nrepl-eval -p <port> "..."`) to explore data and verify logic. Always
+  use `:reload` when requiring namespaces.
 - Skill trigger: activate the `functional-coder` skill whenever designing,
   refactoring, or implementing functional code architectures.
 
-## 2. Property-Based Testing (PBT) Mandate
+## 2. Property-Based Testing (PBT) & Selective Execution
 
 Every non-trivial transformation or data pipeline requires property-based
 testing to ensure robustness across generated inputs:
@@ -29,6 +32,10 @@ testing to ensure robustness across generated inputs:
   fuzzing inputs, and shrinking failing cases.
 - Clojure ecosystem: require `malli.generator` and `clojure.test.check` to
   validate schemas and generator-backed invariants.
+- Selective test execution: during rapid iteration, run only targeted tests
+  (specific vars, namespaces, or changed files, e.g., `pytest path::test_x` or
+  single `deftest`/`defspec` over nREPL). Reserve full test suites for final
+  verification gates.
 - Coverage requirement: unit tests alone are insufficient for core business
   logic, schema validations, serializers, or data transformations.
 
@@ -47,9 +54,17 @@ idle waiting:
   - Non-blocking pipeline: Executioner continuously commits increments to
     `subteam/<id>/work` and notifies Reviewer without pausing. Reviewer
     pulls and audits committed SHAs asynchronously.
+- Shared nREPL Async Workflow:
+  - Each subteam couple shares an nREPL port/session for fast interactive
+    feedback.
+  - Reviewer and Executioner evaluate pure forms, specs, and properties
+    concurrently over nREPL without blocking each other.
+  - Code mutations remain strictly version-controlled in git commits on
+    `subteam/<id>/work`.
 - Targeted Message Board Etiquette:
   - Structured message tags:
-    - `[READY <sha>]`: Executioner signals a new commit ready for audit.
+    - `[READY <sha>]` or `[READY <sha> nrepl:<port>]`: Executioner signals
+      a new commit and optional active nREPL port ready for audit.
     - `[PASS <sha>]`: Reviewer confirms verification passes for that SHA.
     - `[FIX <sha>]`: Reviewer reports required fixes with file and line.
     - `[BLOCK <sha>]`: Reviewer signals critical blocking defect.

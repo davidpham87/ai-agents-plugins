@@ -2,8 +2,9 @@
 name: async-swarm-teamwork
 description: >-
   Runbook and patterns for asynchronous, conflict-free multi-agent swarms.
-  Covers executioner-reviewer subteams, git share pipelines, board etiquette,
-  benchmarking async vs sync throughput, and multi-family Pro review gates.
+  Covers executioner-reviewer subteams, git share pipelines, shared nREPL
+  sessions, selective testing, board etiquette, benchmarking async vs sync
+  throughput, and multi-family Pro review gates.
 ---
 
 # Async Swarm Teamwork Skill
@@ -18,6 +19,8 @@ Activate this skill whenever:
 - Coordinating paired subteams (Executioner + Reviewer/Auditor).
 - Establishing conflict-free Git workflows across parallel workspaces.
 - Running non-blocking commit-and-audit verification loops.
+- Sharing interactive nREPL evaluation ports across subteam agents.
+- Enforcing selective test execution during iterative fast development.
 - Benchmarking asynchronous vs synchronous swarm performance.
 - Conducting an Ultimate Review Gate using heterogeneous Pro model families.
 
@@ -37,6 +40,8 @@ Activate this skill whenever:
 | - Reviewer (Hydrogen)         |   | - Reviewer (Hydrogen)         |
 |   branch: subteam/alpha/review|   |   branch: subteam/beta/review |
 |   audits [PASS|FIX <sha>]     |   |   audits [PASS|FIX <sha>]     |
+| - Shared subteam nREPL port   |   | - Shared subteam nREPL port   |
+|   evaluates pure forms async  |   |   evaluates pure forms async  |
 +-------------------------------+   +-------------------------------+
        |                                           |
        +--------------------+----------------------+
@@ -54,31 +59,36 @@ Activate this skill whenever:
 - **Reviewer / Auditor** (`gemini-4-hydrogen-medium`): Thorough code and
   schema auditor. Inspects commits, tests properties, and enforces rules.
 
-### 2. Isolated Git Topologies
+### 2. Isolated Git Topologies & Shared nREPL Workflows
 - Every subteam agent operates in a dedicated working copy
   (`workspace: "share"`), preventing uncommitted collisions.
 - Clear branching conventions keep authoring and review decoupled:
   `subteam/<id>/work` and `subteam/<id>/review`.
+- Subteams share a persistent nREPL port/session (`clj-nrepl-eval`) for pure
+  form evaluation, schema checking, and REPL-driven development without
+  blocking each other.
 
-### 3. Non-Blocking Commit-and-Audit Pipeline
+### 3. Non-Blocking Commit Pipeline & Selective Test Execution
 - The Executioner commits each functional increment and immediately posts
-  `@<reviewer> [READY <sha>] <files>`.
+  `@<reviewer> [READY <sha> nrepl:<port>] <files>`.
 - The Executioner does NOT block or sleep waiting for approval; it moves
   straight into the subsequent increment.
+- Selective test runs (targeted vars, namespaces, or changed test files) are
+  enforced during fast iteration; full-suite execution is reserved for gates.
 - The Reviewer audits each SHA asynchronously.
 
 ### 4. Board Etiquette & Targeted Signaling
 - Direct `@mentions` only: wake only the intended recipient.
-- Standard protocol tags: `[READY <sha>]`, `[PASS <sha>]`, `[FIX <sha>]`,
-  `[BLOCK <sha>]`, and `[done]`.
+- Standard protocol tags: `[READY <sha> nrepl:<port>]`, `[PASS <sha>]`,
+  `[FIX <sha>]`, `[BLOCK <sha>]`, and `[done]`.
 - No `@all` noise for routine status; cite `#<seq>` for message history.
 
 ## Detailed Runbooks & References
 
-- Subteams, git shares, branches, and conflict resolution:
+- Subteams, git shares, nREPL workflow, and conflict resolution:
   See [01-async-subteams-and-git.md](
   ./references/01-async-subteams-and-git.md).
-- Messaging protocol, audit tags, and multi-family Pro review gate:
+- Messaging protocol, selective testing, and multi-family Pro review gate:
   See [02-communication-and-review.md](
   ./references/02-communication-and-review.md).
 - Benchmarking throughput & latency (async pipelined vs synchronous lockstep):
@@ -91,8 +101,10 @@ Activate this skill whenever:
 
 1. [ ] Spawn subteam pairs with `workspace: "share"` and assigned roles.
 2. [ ] Check out isolated branches (`subteam/<id>/work`).
-3. [ ] Author code following Rich Hickey functional directives and PBT.
-4. [ ] Make granular commits and broadcast `[READY <sha>]` to reviewer.
-5. [ ] Triage reviewer feedback (`[FIX <sha>]`) and apply amendments.
-6. [ ] Convene heterogeneous multi-model Pro panel for the Ultimate Review.
-7. [ ] Validate entire plugin (`agy plugin validate . --strict`).
+3. [ ] Initialize shared subteam nREPL session if developing Clojure code.
+4. [ ] Author code following Rich Hickey functional directives and PBT.
+5. [ ] Execute selective tests during rapid inner loop iteration.
+6. [ ] Make granular commits and broadcast `[READY <sha>]` to reviewer.
+7. [ ] Triage reviewer feedback (`[FIX <sha>]`) and apply amendments.
+8. [ ] Convene heterogeneous multi-model Pro panel for the Ultimate Review.
+9. [ ] Validate full test suites and plugin (`agy plugin validate . --strict`).

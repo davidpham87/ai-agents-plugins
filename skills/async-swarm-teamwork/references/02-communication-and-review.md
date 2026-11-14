@@ -1,7 +1,7 @@
 # Communication Protocols and Review Gates
 
 This reference specifies message board etiquette, structured signaling tags,
-and the multi-family Pro Ultimate Review Gate for swarm collaboration.
+selective testing procedures, and the multi-family Pro Ultimate Review Gate.
 
 ## 1. Message Board Communication Etiquette
 
@@ -28,8 +28,9 @@ and exhausts token budgets.
 
 All agent handoffs utilize standardized uppercase tags:
 
-- `[READY <sha>]` (Executioner -> Reviewer):
-  Payload: `<sha> <files>`. Increment committed and ready for audit.
+- `[READY <sha>]` or `[READY <sha> nrepl:<port>]` (Executioner -> Reviewer):
+  Payload: `<sha> [nrepl:<port>] <files>`. Increment committed and optional
+  active nREPL port broadcast for rapid interactive audit.
 - `[PASS <sha>]` (Reviewer -> Executioner):
   Payload: `<sha> <summary>`. Commit verified and passed all checks.
 - `[FIX <sha>]` (Reviewer -> Executioner):
@@ -41,26 +42,40 @@ All agent handoffs utilize standardized uppercase tags:
 
 ### Lifecycle of an Increment
 ```text
-Executioner                    Reviewer
-     |                            |
-     |--- [READY <sha>] --------->|  (Reviewer wakes and checks diff)
-     |                            |
-     | (authoring next feature)   |--- [PASS <sha>] ---------> (Audited)
-     |                            |
-     |                            |--or--
-     |                            |
-     |<- [FIX <sha>] -------------|  (Executioner queues amendment)
+Executioner                                Reviewer
+     |                                        |
+     |--- [READY <sha> nrepl:<port>] -------->|  (Wakes & runs selective tests)
+     |                                        |  (Evaluates forms over nREPL)
+     | (authors next feature on work branch)  |--- [PASS <sha>] ------> Audited
+     |                                        |
+     |                                        |--or--
+     |                                        |
+     |<- [FIX <sha>] -------------------------|  (Queues amendment)
 ```
 
-## 3. Reviewer Audit Criteria
+## 3. Selective Testing and Reviewer Audit Criteria
 
+### Selective Test Execution Policy
+Running full test suites or cold-boot runners on every single commit creates
+severe development bottlenecks.
+- **Fast Iteration**: Enforce selective test runs during incremental authoring:
+  - In Clojure: evaluate single `deftest`, `defspec`, or schema checks over
+    nREPL (`clj-nrepl-eval -p <port> "(run-test specific-var)"`).
+  - In Python: execute targeted test paths (e.g., `pytest path::test_fn`).
+- **Review Gates**: Full test suites, extensive property iterations (e.g.,
+  1000+ generative runs), and `agy plugin validate . --strict` are reserved for
+  pre-merge sign-off and the Ultimate Review Gate.
+
+### Reviewer Audit Checklist
 When reviewing an increment at `<sha>`, the Auditor evaluates:
 1. **Line Length & Formatting**: Every line must be $\le 80$ characters.
 2. **Functional Idioms**: Plain maps/data structures, pure functions,
    multimethods, schema à la carte, semantic naming.
 3. **Property-Based Testing**: Non-trivial modules must include generative
    property tests (`hypothesis` or `test.check`/`malli`).
-4. **Plugin Integrity**: Running `agy plugin validate . --strict` must pass
+4. **Interactive REPL Verification**: Validate pure functions and schemas over
+   the shared subteam nREPL port when applicable.
+5. **Plugin Integrity**: Running `agy plugin validate . --strict` must pass
    without errors.
 
 ## 4. The Ultimate Review Gate
@@ -84,7 +99,9 @@ patterns, or stylistic biases. The panel brings together:
    squashed or rebased to a candidate branch.
 2. **Parallel Dispatch**: The swarm coordinator spawns panel auditors across
    each model family to independently review the complete diff.
-3. **Synthesis & Quorum**:
+3. **Exhaustive Validation**: Run the complete, non-selective test suite and
+   property generators across all modules.
+4. **Synthesis & Quorum**:
    - Each model submits an audit verdict.
    - Any consensus discrepancy triggers an investigation.
    - All tests, property suites, and strict plugin validations must pass

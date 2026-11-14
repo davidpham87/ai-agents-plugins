@@ -28,12 +28,14 @@ swarm collaboration.
 Always-on directives loaded for every agent session in the workspace:
 - **Functional Coder Directives**: Rich Hickey principles emphasizing plain
   data (maps/sets/vectors), pure functions, polymorphism via data
-  (multimethods), schema à la carte (Malli/Spec), and semantic naming.
-- **Property-Based Testing (PBT)**: Mandates generative testing via
-  `hypothesis` (Python) and `malli`/`test.check` (Clojure) over unit-only tests.
+  (multimethods), schema à la carte (Malli/Spec), semantic naming, and
+  interactive REPL evaluation via `clj-nrepl-eval`.
+- **Property-Based Testing & Selective Execution**: Mandates generative
+  testing via `hypothesis` (Python) and `malli`/`test.check` (Clojure), with
+  selective test runs during rapid inner-loop iteration.
 - **Asynchronous Swarms**: Outlines paired subteam couples (Executioner +
-  Reviewer), non-blocking Git commit/audit flows, targeted message board
-  etiquette, and the multi-family Pro Ultimate Review Gate.
+  Reviewer), non-blocking Git commit/audit flows, shared nREPL sessions,
+  targeted message board etiquette, and the multi-family Pro Ultimate Gate.
 - **Graphics and UI Wireframes**: Mandates ASCII-art wireframes for all visual
   or UI layouts, constrained to 80 characters per line.
 
