@@ -16,6 +16,13 @@ Follow functional programming paradigms inspired by Rich Hickey:
   functions operating on 10 data structures.
 - Semantic naming: make data keys and function names convey exact domain
   intent.
+- Non-breaking evolution via accretion: design systems to evolve by adding
+  new dispatches and optional keys without removing or tightening existing
+  contracts (provide more, require less).
+- Simplicity Score Gate: review evaluations must assess and report an
+  objective Rich Hickey Simplicity Score checking 5 un-complected dimensions:
+  state/time separation, data/behavior decoupling, I/O vs pure logic isolation,
+  mechanism vs policy, and module decoupling. Flag complected braids.
 - REPL-driven development: prefer interactive evaluation via `clj-nrepl-eval`
   (`clj-nrepl-eval -p <port> "..."`) to explore data and verify logic. Always
   use `:reload` when requiring namespaces.
@@ -36,6 +43,9 @@ testing to ensure robustness across generated inputs:
   (specific vars, namespaces, or changed files, e.g., `pytest path::test_x` or
   single `deftest`/`defspec` over nREPL). Reserve full test suites for final
   verification gates.
+- Consumer and subscriber contract tests: require targeted contract tests
+  asserting that producer payload evolutions never break downstream legacy
+  consumers or subscribers.
 - Coverage requirement: unit tests alone are insufficient for core business
   logic, schema validations, serializers, or data transformations.
 
@@ -46,6 +56,13 @@ idle waiting:
 - Subteam Couple: each feature stream is owned by a paired subteam composed
   of an Executioner (`gemini-3.8-flash-medium`) and a Reviewer/Auditor
   (`gemini-4-hydrogen-medium`).
+- Controlled Blast Radius:
+  - Executioners must strictly scope every commit and change to a minimal,
+    explicit blast radius.
+  - Work must remain confined to disjoint files and modules owned by the
+    subteam; avoid silent cross-cutting modifications.
+  - Prefer small atomic diffs over monolithic commits to simplify peer review
+    and prevent regression cascades.
 - Conflict-Free Git Topology:
   - Each subteam member operates in its own isolated working copy
     (`workspace: "share"`).
@@ -79,6 +96,8 @@ idle waiting:
   - Swarm panel: employ Pro models from diverse model families (e.g.,
     Gemini 4 Hydrogen, Claude Opus 5.5, and GPT-OSS 120B) to audit logic,
     security, and architectural soundness from contrasting perspectives.
+  - Simplicity scoring: panel members must compute and report the Simplicity
+    Score, blocking any code with unnecessary braids or hidden coupling.
 
 ## 4. Graphics and UI Wireframes
 
@@ -90,3 +109,21 @@ illustrated:
   boundary.
 - Use structured box-drawing characters or standard ASCII symbols (`+`, `-`,
   `|`, `[ ]`, `( )`) for clarity and deterministic rendering across terminals.
+
+## 5. Readability & AST Code Limits
+
+To maintain codebase readability and prevent bloated or complected code units,
+all Clojure and Python source code must comply with AST-verified limits:
+- Function length limit: maximum 20 lines of code per function definition
+  (`defn`, `defn-`, `fn` in Clojure; `def`, `async def` in Python).
+- File/module limit: maximum 500 lines per namespace or module file.
+- Anti-golfing mandate: strictly forbid semicolon-chained Python statements,
+  multi-top-level forms packed onto a single line, or dense multi-statement
+  one-liners. Code must remain unrolled, explicit, and human-readable.
+- Formatter precedence: always format Clojure code with `cljfmt` prior to
+  evaluating AST or LSP static checks (`clj-kondo`, `clojure-lsp`,
+  Python `ast`).
+- Line length soft limit: 80 characters per line maximum (emits warnings;
+  formatting is strongly enforced without breaking non-fatal builds).
+- Lifecycle enforcement: automated via Antigravity hooks (`hooks.json` and
+  `hooks/check_code_limits.py`) gating file edits and commit commands.

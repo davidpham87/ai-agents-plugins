@@ -99,9 +99,14 @@ process initialization, Clojure subteams adopt a shared nREPL workflow:
 - All persistent source code modifications remain strictly isolated to Git
   commits on `subteam/<id>/work`, preventing workspace corruption.
 
-## 5. Conflict Avoidance & Resolution
+## 5. Conflict Avoidance & Blast Radius Management
 
-To guarantee zero merge conflicts across parallel subteams:
+To guarantee zero merge conflicts and smooth multi-subteam parallelism:
+- **Controlled Blast Radius**:
+  - Executioners must scope every commit to a minimal, explicit blast radius.
+  - Modifications must stay confined to disjoint files and modules owned by
+    the subteam; never introduce silent cross-cutting edits.
+  - Small, atomic diffs ensure reviewer comprehension and rapid turnaround.
 - **Strict File Ownership**: Subteams must be assigned disjoint sets of files.
   For example, Subteam A owns `rules/`, Subteam B owns `skills/foo/`, Subteam
   C owns `skills/bar/`.
