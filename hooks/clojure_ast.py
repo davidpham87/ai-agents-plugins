@@ -87,7 +87,9 @@ def check_kondo_fn_lengths(
         if any(k in v.get("defined-by", "") for k in ("defn", "defmacro")):
             errs.extend(_span_err(v.get("name", "fn"), v, max_lines))
     for u in analysis.get("var-usages", []):
-        if u.get("name") in ("defmethod", "fn"):
+        if u.get("name") in ("defmethod", "fn") and u.get("to") in (
+            "clojure.core", "cljs.core"
+        ):
             errs.extend(_span_err(u["name"], u, max_lines))
     return errs
 
@@ -180,11 +182,10 @@ def parse_clojure_forms(source: str) -> List[Dict[str, Any]]:
     }
     idx, line, n = 0, 1, len(source)
     while idx < n:
-        if source[idx] == "\n":
-            line += 1
         next_idx, ch = _advance_scanner(source, idx, state)
         if ch is not None and ch in "([{}])":
             _record_edge(ch, line, source[idx : idx + 30], state, forms)
+        line += source[idx:next_idx].count("\n")
         idx = next_idx
     return forms
 
@@ -224,9 +225,13 @@ def analyze_clojure_ast(
 ) -> List[str]:
     """Run in-memory cljfmt + clj-kondo (or fallback) AST checks."""
     formatted = format_clojure_stdin(source)
+    forms = parse_clojure_forms(formatted)
     if use_kondo:
         kondo_data = run_clj_kondo(formatted, lang=lang_for_path(path))
         if kondo_data is not None:
-            return extract_kondo_errors(kondo_data)
-    forms = parse_clojure_forms(formatted)
+            errs = extract_kondo_errors(kondo_data)
+            for g in check_fallback_golfing(forms):
+                if g not in errs:
+                    errs.append(g)
+            return errs
     return check_fallback_golfing(forms) + check_fallback_fn_lengths(forms)

@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 import shlex
 import subprocess
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 VALID_EXTS = {".py", ".clj", ".cljs", ".cljc"}
 _GIT_VAL_OPTS = {
@@ -35,8 +35,32 @@ def _split_tokens_by_ops(tokens: Sequence[str]) -> List[List[str]]:
     return segments
 
 
-def _parse_git_commit_seg(tokens: Sequence[str]) -> Optional[str]:
-    """Return `-C` dir (or '') if tokens invoke `git ... commit`."""
+_COMMIT_VAL_OPTS = {
+    "-m", "--message", "-F", "--file", "-C", "--reuse-message",
+    "-c", "--reedit-message", "-t", "--template", "--author", "--date",
+}
+
+
+def _has_commit_all_flag(args: Sequence[str]) -> bool:
+    """Return True if commit args include -a, --all, or -am cluster."""
+    idx = 0
+    while idx < len(args):
+        tok = args[idx]
+        if tok == "--":
+            break
+        if tok in _COMMIT_VAL_OPTS:
+            idx += 2
+            continue
+        if tok == "--all" or (
+            tok.startswith("-") and not tok.startswith("--") and "a" in tok
+        ):
+            return True
+        idx += 1
+    return False
+
+
+def _parse_git_commit_seg(tokens: Sequence[str]) -> Optional[Tuple[str, bool]]:
+    """Return (c_dir, include_all) if tokens invoke `git ... commit`."""
     if not tokens or Path(tokens[0]).name != "git":
         return None
     idx, c_dir = 1, ""
@@ -49,12 +73,16 @@ def _parse_git_commit_seg(tokens: Sequence[str]) -> Optional[str]:
         elif tok.startswith("-"):
             idx += 1
         else:
-            return c_dir if tok == "commit" else None
+            if tok == "commit":
+                return c_dir, _has_commit_all_flag(tokens[idx + 1 :])
+            return None
     return None
 
 
-def detect_git_commit(cmd: str, default_cwd: Path) -> Optional[Path]:
-    """Return target repo cwd if cmd executes `git commit`, else None."""
+def detect_git_commit(
+    cmd: str, default_cwd: Path
+) -> Optional[Tuple[Path, bool]]:
+    """Return (repo_cwd, include_all) if cmd runs `git commit`, else None."""
     try:
         lex = shlex.shlex(cmd, posix=True, punctuation_chars=";|&()")
         lex.whitespace_split = True
@@ -62,9 +90,11 @@ def detect_git_commit(cmd: str, default_cwd: Path) -> Optional[Path]:
     except ValueError:
         return None
     for seg in _split_tokens_by_ops(tokens):
-        c_dir = _parse_git_commit_seg(seg)
-        if c_dir is not None:
-            return (default_cwd / c_dir).resolve() if c_dir else default_cwd
+        parsed = _parse_git_commit_seg(seg)
+        if parsed is not None:
+            c_dir, inc_all = parsed
+            cwd = (default_cwd / c_dir).resolve() if c_dir else default_cwd
+            return cwd, inc_all
     return None
 
 
@@ -79,8 +109,24 @@ def _run_git_bytes(cwd: Path, args: Sequence[str]) -> Optional[bytes]:
         return None
 
 
-def get_staged_blobs(repo_dir: Path) -> Optional[Dict[Path, str]]:
-    """Read staged index blobs via `git show :<path>`."""
+def _add_unstaged_tracked(repo_dir: Path, blobs: Dict[Path, str]) -> None:
+    """Add unstaged modified tracked files for `git commit -a`."""
+    raw = _run_git_bytes(
+        repo_dir, ["diff", "--name-only", "--diff-filter=ACM", "-z"]
+    )
+    if raw is None:
+        return
+    for entry in raw.split(b"\x00"):
+        rel = entry.decode("utf-8", errors="replace").strip()
+        p = repo_dir / rel
+        if rel and p.suffix.lower() in VALID_EXTS and p.is_file():
+            blobs[p] = p.read_text(encoding="utf-8", errors="replace")
+
+
+def get_staged_blobs(
+    repo_dir: Path, include_all: bool = False
+) -> Optional[Dict[Path, str]]:
+    """Read staged index blobs via `git show :<path>` (plus `-a` workdir)."""
     raw = _run_git_bytes(
         repo_dir, ["diff", "--cached", "--name-only", "--diff-filter=ACM", "-z"]
     )
@@ -94,6 +140,8 @@ def get_staged_blobs(repo_dir: Path) -> Optional[Dict[Path, str]]:
         blob = _run_git_bytes(repo_dir, ["show", f":{rel}"])
         if blob is not None:
             blobs[repo_dir / rel] = blob.decode("utf-8", errors="replace")
+    if include_all:
+        _add_unstaged_tracked(repo_dir, blobs)
     return blobs
 
 

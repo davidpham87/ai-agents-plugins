@@ -91,8 +91,10 @@ def test_prop_python_semicolon_golfing_detected(stmts: List[str]) -> None:
 def test_python_ast_packed_and_dense_golfing() -> None:
     """Packed one-liners and dense nested comprehensions are rejected."""
     packed = "def f(x): return x + 1\n"
+    if_one = "def g(x):\n    if x: return 1\n"
     dense = "y = [a for a in [b for b in [c for c in range(5)]]]\n"
     assert check_python_code(packed, "p.py")["valid"] is False
+    assert check_python_code(if_one, "i.py")["valid"] is False
     assert check_python_code(dense, "d.py")["valid"] is False
 
 
@@ -161,10 +163,13 @@ def test_defmethod_over_20_lines_and_cljs_cljc() -> None:
 
 
 def test_fallback_scanner_escapes_and_char_literals() -> None:
-    """Fallback scanner handles escaped quotes and char literals."""
-    code = '(defn ok [x]\n  (let [s "a\\"b" c \\(]\n    [s c x]))\n'
+    """Fallback scanner handles escaped quotes, chars, and catches 25L fn."""
+    body = "\n".join(f"  (+ {i} 1)" for i in range(23))
+    code = f'(def s "a\\"b")\n(def c \\()\n(defn big [x]\n{body})\n'
     res = check_clojure_code(code, "esc.clj", use_kondo=False)
-    assert res["valid"] is True
+    assert res["valid"] is False
+    packed = check_clojure_code("(println 1) (println 2)\n", "p.clj")
+    assert packed["valid"] is False
 
 
 @given(line_len=st.integers(min_value=1, max_value=80))
@@ -245,14 +250,36 @@ def test_post_tool_use_cwd_format_and_stderr(capsys) -> None:
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
         f = tmp / "rel.clj"
-        f.write_text("(defn f\n[x]\n(let [a 1]\n(+ x a)))\n", encoding="utf-8")
+        long_str = '"' + ("x" * 82) + '"'
+        f.write_text(f"(defn f\n[x]\n(let [a {long_str}]\n(+ x a)))\n",
+                     encoding="utf-8")
         pl = json.dumps({
             "toolCall": {"name": "write_file", "args": {"Path": "rel.clj"}},
             "cwd": str(tmp),
         })
         assert json.loads(process_hook_payload("PostToolUse", pl)) == {}
         assert "  [x]" in f.read_text(encoding="utf-8")
-        assert capsys.readouterr().err == "" or True
+        assert "[code-limits]" in capsys.readouterr().err
+
+
+def test_pre_tool_use_git_commit_am_checks_workdir() -> None:
+    """PreToolUse denies git commit -am when unstaged tracked file fails."""
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        p = tmp / "a.py"
+        p.write_text("x = 1\n", encoding="utf-8")
+        for cmd in (["git", "init"], ["git", "config", "user.email", "t@t.com"],
+                    ["git", "config", "user.name", "T"],
+                    ["git", "add", "a.py"], ["git", "commit", "-m", "init"]):
+            subprocess.run(cmd, cwd=tmp, check=True, capture_output=True)
+        p.write_text("x = 1; y = 2\n", encoding="utf-8")
+        pl = json.dumps({
+            "toolCall": {"name": "run_command",
+                         "args": {"CommandLine": 'git commit -am "x"'}},
+            "cwd": str(tmp),
+        })
+        assert json.loads(process_hook_payload("PreToolUse", pl)).get(
+            "decision") == "deny"
 
 
 def test_hooks_stop_and_porcelain_z_rename() -> None:

@@ -39,7 +39,7 @@ from git_scope import (  # noqa: E402, F401
 )
 
 _COMPOUND_NODES = (
-    ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+    ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.If,
     ast.For, ast.AsyncFor, ast.While, ast.With, ast.AsyncWith, ast.Try,
 )
 _DENSE_EXPR = (
@@ -199,9 +199,11 @@ def format_violation_reasons(violations: Sequence[Dict[str, Any]]) -> str:
     return f"Code limits violated: {' | '.join(reasons)}"
 
 
-def _check_commit_targets(commit_cwd: Path) -> List[Dict[str, Any]]:
-    """Check staged index blobs if git repo, else workspace."""
-    blobs = get_staged_blobs(commit_cwd)
+def _check_commit_targets(
+    commit_cwd: Path, include_all: bool
+) -> List[Dict[str, Any]]:
+    """Check staged index blobs (plus `-a` workdir) if git repo."""
+    blobs = get_staged_blobs(commit_cwd, include_all=include_all)
     targets = (
         [check_source_for_path(src, p) for p, src in blobs.items()]
         if blobs is not None
@@ -217,10 +219,10 @@ def handle_pre_tool_use(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"decision": "ask"}
     cmd = tool_call.get("args", {}).get("CommandLine", "")
     workspace = Path(payload.get("cwd", ".")).resolve()
-    commit_cwd = detect_git_commit(cmd, workspace)
-    if commit_cwd is None:
+    commit_info = detect_git_commit(cmd, workspace)
+    if commit_info is None:
         return {"decision": "ask"}
-    violations = _check_commit_targets(commit_cwd)
+    violations = _check_commit_targets(*commit_info)
     if violations:
         return {
             "decision": "deny",
