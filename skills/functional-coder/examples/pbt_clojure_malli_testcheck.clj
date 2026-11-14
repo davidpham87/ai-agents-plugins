@@ -14,6 +14,21 @@
             [malli.core :as m]
             [malli.generator :as mg]))
 
+(defn compute-simplicity-score
+  "Rich Hickey Simplicity Score (0-100) assessing decomplecting.
+   Penalizes 20 pts for each complected concern."
+  [arch-flags]
+  (let [penalties [:braid/state-time
+                   :braid/data-code
+                   :braid/io-logic
+                   :braid/policy-mechanism
+                   :braid/global-coupling]
+        deductions (reduce (fn [acc k]
+                             (if (get arch-flags k) (+ acc 20) acc))
+                           0
+                           penalties)]
+    (max 0 (- 100 deductions))))
+
 ;; --- Domain Logic: Pure Functions & Open Multimethods ---
 
 (defmulti calculate-tax
@@ -51,6 +66,13 @@
      :order/subtotal subtotal
      :order/tax tax
      :order/total (+ subtotal tax)}))
+
+(defn legacy-order-consumer
+  "Downstream consumer extracting only the attributes it requires."
+  [order]
+  {:consumer/order-id (:order/id order)
+   :consumer/item-count (count (:order/items order))
+   :consumer/subtotal (calculate-subtotal order)})
 
 ;; --- Schemas a la Carte with Malli ---
 
@@ -102,12 +124,53 @@
     (let [summary (calculate-order-total order)]
       (>= (:order/total summary) (:order/subtotal summary)))))
 
+;; Generator for arbitrary accretive extension keys
+(def accretive-keys-gen
+  (gen/map (gen/elements [:order/loyalty-points
+                          :order/delivery-notes
+                          :shipping/carrier-code
+                          :campaign/promo-id])
+           (gen/one-of [gen/string-alphanumeric gen/nat])))
+
+;; Property 5: Non-breaking evolution:
+;; Accretive keys do not break legacy consumer
+(def prop-consumer-contract-non-breaking-evolution
+  (prop/for-all [order order-gen
+                 extra-keys accretive-keys-gen]
+    (let [evolved-order (merge order extra-keys)]
+      (= (legacy-order-consumer order)
+         (legacy-order-consumer evolved-order)))))
+
+(def SimplicitySchema
+  [:map
+   [:braid/state-time :boolean]
+   [:braid/data-code :boolean]
+   [:braid/io-logic :boolean]
+   [:braid/policy-mechanism :boolean]
+   [:braid/global-coupling :boolean]])
+
+(def simplicity-gen
+  (mg/generator SimplicitySchema))
+
+;; Property 6: Simplicity Score invariants (bounds, steps, monotonicity)
+(def prop-simplicity-score-invariants
+  (prop/for-all [flags simplicity-gen]
+    (let [score (compute-simplicity-score flags)
+          braided (assoc flags :braid/state-time true)]
+      (and (<= 0 score 100)
+           (zero? (mod score 20))
+           (<= (compute-simplicity-score braided) score)))))
+
 ;; --- defspec declarations for Clojure Test Suite Integration ---
 
 (defspec check-roundtrip-edn 50 prop-roundtrip-edn)
 (defspec check-subtotal-non-negative 50 prop-subtotal-non-negative)
 (defspec check-oracle-subtotal 50 prop-oracle-subtotal)
 (defspec check-total-exceeds-subtotal 50 prop-total-exceeds-subtotal)
+(defspec check-consumer-contract-evolution 50
+  prop-consumer-contract-non-breaking-evolution)
+(defspec check-simplicity-score-invariants 50
+  prop-simplicity-score-invariants)
 
 ;; --- REPL-Driven & Selective Test Helpers ---
 
@@ -126,7 +189,11 @@
   (let [props [["Round-trip EDN" prop-roundtrip-edn]
                ["Subtotal non-negative" prop-subtotal-non-negative]
                ["Oracle subtotal" prop-oracle-subtotal]
-               ["Total >= subtotal" prop-total-exceeds-subtotal]]
+               ["Total >= subtotal" prop-total-exceeds-subtotal]
+               ["Consumer contract evolution"
+                prop-consumer-contract-non-breaking-evolution]
+               ["Simplicity score invariants"
+                prop-simplicity-score-invariants]]
         results (mapv (fn [[name-str p]]
                         (let [res (tc/quick-check 50 p)]
                           (println (format "  * %s: %s (%d tests)"

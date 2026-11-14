@@ -16,6 +16,19 @@ from hypothesis import given, strategies as st
 
 # --- Pure Domain Functions ---
 
+def compute_simplicity_score(arch_flags: Mapping[str, bool]) -> int:
+    """Rich Hickey Simplicity Score (0-100) assessing decomplecting."""
+    penalties = [
+        arch_flags.get("braid/state-time", False),
+        arch_flags.get("braid/data-code", False),
+        arch_flags.get("braid/io-logic", False),
+        arch_flags.get("braid/policy-mechanism", False),
+        arch_flags.get("braid/global-coupling", False),
+    ]
+    deductions = sum(20 for flag in penalties if flag)
+    return max(0, 100 - deductions)
+
+
 def normalize_text(text: str) -> str:
     """Idempotent whitespace and case normalizer."""
     return " ".join(text.strip().lower().split())
@@ -58,6 +71,18 @@ def calculate_tax(amount: float, region: str) -> float:
     return round(amount * rate, 2)
 
 
+def legacy_order_subscriber(order: Mapping[str, Any]) -> dict[str, Any]:
+    """Legacy consumer extracting only the attributes it requires."""
+    order_id = str(order["order/id"])
+    items = order.get("order/items", [])
+    subtotal = calculate_subtotal(items)
+    return {
+        "subscriber/order-id": order_id,
+        "subscriber/item-count": len(items),
+        "subscriber/subtotal": subtotal,
+    }
+
+
 def serialize_order(order: Mapping[str, Any]) -> str:
     """Serialize order map to deterministic JSON string."""
     return json.dumps(order, sort_keys=True, separators=(",", ":"))
@@ -95,6 +120,32 @@ order_strategy = st.fixed_dictionaries(
             ["EU", "UK", "US-CA", "US-NY", "OTHER"]
         ),
         "order/items": st.lists(item_strategy, min_size=0, max_size=10),
+    }
+)
+
+
+accretive_metadata_strategy = st.dictionaries(
+    keys=st.sampled_from(
+        [
+            "order/loyalty-points",
+            "order/delivery-notes",
+            "order/tracking-code",
+            "campaign/promo-id",
+            "payment/provider-reference",
+        ]
+    ),
+    values=st.text(min_size=1, max_size=40) | st.integers(0, 1000),
+    max_size=5,
+)
+
+
+simplicity_flags_strategy = st.fixed_dictionaries(
+    {
+        "braid/state-time": st.booleans(),
+        "braid/data-code": st.booleans(),
+        "braid/io-logic": st.booleans(),
+        "braid/policy-mechanism": st.booleans(),
+        "braid/global-coupling": st.booleans(),
     }
 )
 
@@ -144,10 +195,39 @@ def test_oracle_subtotal_matches_manual_sum(
     )
 
 
+@given(order_strategy, accretive_metadata_strategy)
+def test_consumer_contract_non_breaking_evolution(
+    order: dict[str, Any],
+    extra_fields: dict[str, Any],
+) -> None:
+    """Property: Accretive producer changes do not break legacy consumers."""
+    baseline_result = legacy_order_subscriber(order)
+    evolved_order = dict(order)
+    evolved_order.update(extra_fields)
+
+    evolved_result = legacy_order_subscriber(evolved_order)
+    assert evolved_result == baseline_result
+
+
+@given(simplicity_flags_strategy)
+def test_simplicity_score_invariants(flags: dict[str, bool]) -> None:
+    """Property: Simplicity score invariants (bounds, monotonicity)."""
+    score = compute_simplicity_score(flags)
+    assert 0 <= score <= 100
+    assert score % 20 == 0
+
+    # Adding a braid penalty never increases simplicity score
+    braided = dict(flags)
+    braided["braid/state-time"] = True
+    assert compute_simplicity_score(braided) <= score
+
+
 if __name__ == "__main__":
     print("Running Hypothesis property tests...")
     test_order_roundtrip_json_serialization()
     test_text_normalization_is_idempotent()
     test_discount_invariant()
     test_oracle_subtotal_matches_manual_sum()
+    test_consumer_contract_non_breaking_evolution()
+    test_simplicity_score_invariants()
     print("All Python property-based tests passed successfully!")

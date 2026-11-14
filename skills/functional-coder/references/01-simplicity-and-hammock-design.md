@@ -100,3 +100,40 @@ focused cognition.
    Re-evaluate candidates against simplicity metrics. Does any component
    touch more than one concern? If so, decomplect it before writing a single
    line of implementation code.
+
+
+---
+
+## 4. The Rich Hickey Simplicity Score
+
+To make simplicity actionable during code reviews and architectural audits,
+we define the **Rich Hickey Simplicity Score (RHSS)**: an objective, 100-point
+metric assessing the degree of decomplecting in a design.
+
+A pristine simplex design starts at 100 points. Penalties are deducted for
+each complected concern:
+
+* **-20 pts: State + Time Braid**:
+  Variables mutated in-place; memory overwritten; destruction of past
+  values; locks/mutexes needed to observe state safely.
+* **-20 pts: Data + Code/Class Braid**:
+  Bespoke domain classes wrapping simple maps/tuples; getters and setters;
+  methods closed inside class definitions rather than general functions.
+* **-20 pts: I/O + Pure Logic Braid**:
+  Disk, network, or database calls embedded directly inside business logic
+  calculations; lack of pure functional cores with imperative shells.
+* **-20 pts: Policy + Mechanism Braid**:
+  Business domain rules hard-coded into transport layers, queuing engines,
+  or storage serialization details.
+* **-20 pts: Hidden Global Coupling**:
+  Ambient singletons; global mutable configuration; implicit thread-local
+  contexts; invisible dependencies between disparate subsystems.
+
+### Simplicity Score Rubric
+
+* **100 pts (Simplex)**: Perfectly decomplected. Pure functions, immutable
+  values, open schemas, clear epochal time boundaries.
+* **80-99 pts (Pass)**: Minor incidental coupling with documented boundary
+  isolation.
+* **< 80 pts (Complected / Fail)**: Architecture is complected. Halt coding,
+  retreat to the hammock, and untangle concerns before proceeding.

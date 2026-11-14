@@ -174,3 +174,25 @@ execution discipline:
   trials per property) only before committing or merging:
   - Python: `pytest`
   - Clojure: `(run-all-properties!)` or full `lein test` / `clj -M:test`
+
+
+---
+
+## 8. Consumer and Subscriber Contract PBT
+
+How do you prove that an accretive change will not blow up downstream
+consumers or event subscribers? Generative Contract Testing.
+
+Instead of writing a static integration test with one legacy payload:
+1. Construct a generator that synthesizes **evolved producer messages**:
+   the baseline schema extended with arbitrary additional namespaced keys,
+   new optional attributes, and extended metadata.
+2. Feed these evolved payloads directly into legacy consumer functions.
+3. Assert that the legacy consumer:
+   - Successfully extracts its required keys without throwing exceptions.
+   - Computes identical outputs regardless of the presence of novel keys.
+   - Preserves downstream invariant properties.
+
+By executing this contract test across hundreds of generated permutations, you
+mathematically verify that your system's blast radius remains strictly
+contained.

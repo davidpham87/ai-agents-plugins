@@ -42,13 +42,16 @@ systems of pure functions that operate on simple, immutable data.
    Iterate by evaluating single properties and data generators interactively
    via nREPL (`clj-nrepl-eval`) or Python REPL. Scope runs to changed vars
    during rapid iteration, reserving full test suites for final gates.
+9. **Rich Hickey Simplicity Score**:
+   Objective 100-point metric penalizing complected concerns (state+time,
+   data+code, I/O+logic, policy+mechanism, and hidden global coupling).
 
 ## Progressive Discovery & References
 
 Delve into each principle in depth through dedicated reference guides:
 
 - [Simplicity & Hammock Design][ref-01]
-  Decomplecting, Simple vs Easy, and thinking before typing.
+  Decomplecting, Simple vs Easy, Hammock design, Simplicity Score.
 - [Data over Code & Values][ref-02]
   Immutable values, PLOP hazards, Perlis epigrams, and time vs identity.
 - [Open Polymorphism][ref-03]

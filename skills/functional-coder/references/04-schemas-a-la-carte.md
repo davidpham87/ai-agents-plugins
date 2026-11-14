@@ -105,12 +105,37 @@ Benefits of schemas as data:
 
 ---
 
-## 4. Software Evolution: Breaking Changes vs. Accretion
+## 4. Controlled Blast Radius and Non-Breaking Evolution
 
-In *Spec-ulation*, Hickey formulated the rules of breaking changes:
-* You cannot require more than you did before.
-* You cannot provide less than you did before.
+In *Spec-ulation*, Rich Hickey formulated the canonical rules of evolutionary
+software architecture:
 
-If a function accepted `A`, it cannot later require `A` and `B`. That is a
-breaking change. If you need new inputs or different behavior, provide a new
-function or an accretive, optional attribute.
+> "You can only make two kinds of non-breaking changes:
+> 1. Require less.
+> 2. Provide more."
+
+When systems evolve, changes should be purely **accretive**:
+* **Provide More**: Producers can enrich payload maps with new namespaced keys
+  (e.g., `:order/loyalty-points` or `:shipping/carrier-code`).
+* **Require Less**: Consumers can relax input preconditions, but they must
+  never introduce mandatory new requirements for existing callers.
+
+### Controlling the Blast Radius
+
+In traditional systems with brittle, closed schemas, adding an attribute to an
+upstream service triggers a cascade of breakages across intermediate proxies,
+aggregators, and subscribers—a massive blast radius.
+
+Functional open systems contain blast radius to zero:
+1. **Open Maps as Shock Absorbers**: Downstream consumers extract only the keys
+   they need (`select-keys`, `get-in`) and ignore unrecognized keys.
+2. **Never Tighten Existing Contracts**: Do not add required fields to existing
+   endpoints or dispatches. If a new business requirement demands a strictly
+   different contract, create a new function, endpoint, or event topic.
+3. **Never Mutate or Delete Existing Semantics**: Once a namespaced attribute
+   like `:user/email` is defined and used by subscribers, its meaning is
+   immutable. If its structure changes, mint a new qualified key (e.g.,
+   `:user/primary-email-address`).
+4. **Independent Evolution**: Microservices and swarm agents evolve at
+   different speeds without lockstep synchronization or distributed breaking
+   deployments.
