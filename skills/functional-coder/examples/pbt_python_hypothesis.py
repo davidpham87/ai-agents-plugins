@@ -11,21 +11,30 @@ from __future__ import annotations
 import json
 import math
 from typing import Any, Mapping, Sequence
+from cytoolz import assoc, merge, pipe, reduce as creduce
+from cytoolz.curried import filter as cfilter, map as cmap
 from hypothesis import given, strategies as st
 
 
 # --- Pure Domain Functions ---
 
+_BRAID_KEYS = (
+    "braid/state-time",
+    "braid/data-code",
+    "braid/io-logic",
+    "braid/policy-mechanism",
+    "braid/global-coupling",
+)
+
+
 def compute_simplicity_score(arch_flags: Mapping[str, bool]) -> int:
-    """Rich Hickey Simplicity Score (0-100) assessing decomplecting."""
-    penalties = [
-        arch_flags.get("braid/state-time", False),
-        arch_flags.get("braid/data-code", False),
-        arch_flags.get("braid/io-logic", False),
-        arch_flags.get("braid/policy-mechanism", False),
-        arch_flags.get("braid/global-coupling", False),
-    ]
-    deductions = sum(20 for flag in penalties if flag)
+    """Rich Hickey Simplicity Score (0-100) via cytoolz pipeline."""
+    deductions = pipe(
+        _BRAID_KEYS,
+        cfilter(lambda key: bool(arch_flags.get(key, False))),
+        cmap(lambda _key: 20),
+        sum,
+    )
     return max(0, 100 - deductions)
 
 
@@ -42,8 +51,8 @@ def calculate_line_item(item: Mapping[str, Any]) -> float:
 
 
 def calculate_subtotal(items: Sequence[Mapping[str, Any]]) -> float:
-    """Pure reduction over line items."""
-    return round(sum(calculate_line_item(item) for item in items), 2)
+    """Pure cytoolz pipeline reduction over line items."""
+    return round(pipe(items, cmap(calculate_line_item), sum), 2)
 
 
 def apply_discount(subtotal: float, discount_code: str | None) -> float:
@@ -182,12 +191,16 @@ def test_discount_invariant(amount: float, code: str | None) -> None:
 def test_oracle_subtotal_matches_manual_sum(
     items: list[dict[str, Any]],
 ) -> None:
-    """Property: Metamorphic check against reference loop implementation."""
-    reference_sum = 0.0
-    for it in items:
-        reference_sum += round(float(it["item/price"]) * int(it["item/qty"]), 2)
-    reference_sum = round(reference_sum, 2)
-
+    """Property: Metamorphic check against cytoolz.reduce oracle."""
+    reference_sum = round(
+        creduce(
+            lambda acc, it: acc
+            + round(float(it["item/price"]) * int(it["item/qty"]), 2),
+            items,
+            0.0,
+        ),
+        2,
+    )
     assert math.isclose(
         calculate_subtotal(items),
         reference_sum,
@@ -202,9 +215,7 @@ def test_consumer_contract_non_breaking_evolution(
 ) -> None:
     """Property: Accretive producer changes do not break legacy consumers."""
     baseline_result = legacy_order_subscriber(order)
-    evolved_order = dict(order)
-    evolved_order.update(extra_fields)
-
+    evolved_order = merge(order, extra_fields)
     evolved_result = legacy_order_subscriber(evolved_order)
     assert evolved_result == baseline_result
 
@@ -215,10 +226,7 @@ def test_simplicity_score_invariants(flags: dict[str, bool]) -> None:
     score = compute_simplicity_score(flags)
     assert 0 <= score <= 100
     assert score % 20 == 0
-
-    # Adding a braid penalty never increases simplicity score
-    braided = dict(flags)
-    braided["braid/state-time"] = True
+    braided = assoc(flags, "braid/state-time", True)
     assert compute_simplicity_score(braided) <= score
 
 

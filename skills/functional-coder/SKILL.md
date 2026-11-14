@@ -24,6 +24,8 @@ systems of pure functions that operate on simple, immutable data.
 3. **Data over Code & Classes**:
    Prefer 100 functions on one universal data structure over 10 functions
    on 10 specific classes (Alan Perlis). Avoid premature class hierarchies.
+   In Python, mandate `cytoolz` (`pipe`, `thread_first`, `map`, `filter`,
+   `reduce`, `assoc`, `merge`, `groupby`, `valmap`) over manual `for` loops.
 4. **Open Polymorphism**:
    Decouple operations from types using Clojure multimethods (dispatching on
    arbitrary functions) and protocols. Solve the expression problem openly.
@@ -53,7 +55,7 @@ Delve into each principle in depth through dedicated reference guides:
 - [Simplicity & Hammock Design][ref-01]
   Decomplecting, Simple vs Easy, Hammock design, Simplicity Score.
 - [Data over Code & Values][ref-02]
-  Immutable values, PLOP hazards, Perlis epigrams, and time vs identity.
+  Immutable values, PLOP hazards, Perlis, `cytoolz` pipelines, time.
 - [Open Polymorphism][ref-03]
   Multimethods, hierarchies, protocols, and solving Expression Problem.
 - [Schemas a la Carte][ref-04]

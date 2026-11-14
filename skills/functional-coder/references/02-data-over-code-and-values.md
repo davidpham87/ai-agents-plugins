@@ -96,3 +96,35 @@ Clojure implements the **Epochal Time Model** via reference types:
 In all cases, reading a reference type (`@my-atom` or `(deref my-atom)`)
 yields an immutable value snapshot in constant time with **zero locks**.
 Readers never block writers, and writers never block readers.
+
+
+---
+
+## 4. Python `cytoolz` Pipelines over Manual Loops
+
+In Python, imperative `for` loops with mutating accumulators (`res = []`,
+`d[k] = v`) reintroduce Place-Oriented Programming (PLOP). To apply Alan
+Perlis's epigram and Rich Hickey's value semantics in Python, mandate
+`cytoolz` for data transformations:
+
+* **Threading**: `pipe` (`->>` / `->` via `curried`) and `thread_first`.
+* **Sequence transforms**: `cytoolz.curried.map`, `filter`, `reduce`,
+  `groupby`, `pluck`.
+* **Immutable dict transforms**: `assoc`, `dissoc`, `merge`, `update_in`,
+  `valmap`, `keymap` (all return new dicts without mutating inputs).
+
+```python
+from cytoolz import pipe, merge, assoc, valmap
+from cytoolz.curried import map as cmap, filter as cfilter, groupby
+
+# Clojure (->> items (filter active?) (map price) (reduce + 0))
+total = pipe(
+    items,
+    cfilter(lambda it: it.get("item/qty", 0) > 0),
+    cmap(lambda it: it["item/price"] * it["item/qty"]),
+    sum,
+)
+```
+
+Prefer declarative `cytoolz` pipelines over manual `for` loops whenever
+transforming collections or associative maps.
