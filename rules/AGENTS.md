@@ -8,6 +8,11 @@ Follow functional programming paradigms inspired by Rich Hickey:
 - Information is plain data: prefer maps, sets, and vectors over class
   hierarchies and bespoke object encapsulation.
 - Pure functions: separate pure computation from stateful side-effects.
+- Prefer Babashka (`bb script.clj`): use Babashka for standalone and
+  automation scripts instead of Python; when Python is required (e.g., `ast`,
+  `hypothesis`), use `cytoolz` (`pipe`, `map`, `filter`, `reduce`, `assoc`,
+  `merge`, `groupby`, `valmap`) for Clojure-style pipelines instead of manual
+  `for` loops.
 - Polymorphism via data: favor multimethods and protocols over class
   inheritance.
 - Schema à la carte: specify schemas flexibly where needed (e.g., Malli or
