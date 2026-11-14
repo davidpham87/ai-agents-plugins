@@ -23,9 +23,9 @@ swarm collaboration.
     │   ├── SKILL.md            # Swarm execution patterns and workflows
     │   ├── scripts/            # Throughput & latency benchmarking harness
     │   └── references/         # In-depth runbooks and benchmark data
-    ├── problem-solving/        # Polya heuristics & SGU skeptical auditing
-    │   ├── SKILL.md            # 4-step workflow & bias/fallacy checks
-    │   └── references/         # Polya steps, heuristics, biases, fallacies
+    ├── problem-solving/        # Polya, practical tactics, biases & debugging
+    │   ├── SKILL.md            # Integrated solving, debugging & audit flow
+    │   └── references/         # Steps, heuristics, biases, practical, debug
     └── example-skill/
         └── SKILL.md            # On-demand skill template
 ```
@@ -74,14 +74,18 @@ On-demand operational runbook and toolset for multi-agent swarms:
   over synchronous request-response lockstep.
 
 ### 4. Problem-Solving Skill (`skills/problem-solving/`)
-On-demand reasoning skill pairing George Polya (*How to Solve It*) with Dr.
-Steven Novella (*The Skeptics' Guide to the Universe*):
+On-demand reasoning skill pairing George Polya (*How to Solve It*) and
+practical engineering/debugging tactics with Dr. Steven Novella (*The Skeptics'
+Guide to the Universe*):
 - **Polya Steps & Heuristics (`references/01-*.md`, `02-*.md`)**:
-  Structured 4-phase problem solving and classic heuristics (working backwards,
-  auxiliary problems, generalization, invariants).
+  4-phase solving loop with I/O contracts, plan criteria, checkpointing,
+  regression guards, and 10 classic/extended heuristics.
 - **Skeptical Auditing (`references/03-*.md`, `04-*.md`)**:
   Cognitive bias countermeasures, logical fallacy detection, falsifiability,
   and Occam's razor engineering checklists.
+- **Practical Solving & Diagnostics (`references/05-*.md`, `06-*.md`)**:
+  First principles, pre-mortems, bottlenecks, spikes, triage, `git bisect`,
+  Wolf Fence probes, MRE/delta debugging, differential diagnosis, and 5 Whys.
 
 ### 5. Lifecycle Hooks (`hooks.json` & `hooks/`)
 Automated Antigravity lifecycle hooks enforcing code limits:
