@@ -64,3 +64,14 @@ idle waiting:
   - Swarm panel: employ Pro models from diverse model families (e.g.,
     Gemini 4 Hydrogen, Claude Opus 5.5, and GPT-OSS 120B) to audit logic,
     security, and architectural soundness from contrasting perspectives.
+
+## 4. Graphics and UI Wireframes
+
+Whenever graphics, terminal displays, dashboards, or UI designs are
+illustrated:
+- Require explicit ASCII-art wireframes to visualize screen layouts,
+  element hierarchies, and component placements.
+- Ensure all ASCII diagrams conform strictly to the 80-character line width
+  boundary.
+- Use structured box-drawing characters or standard ASCII symbols (`+`, `-`,
+  `|`, `[ ]`, `( )`) for clarity and deterministic rendering across terminals.

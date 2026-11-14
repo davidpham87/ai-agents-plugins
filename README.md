@@ -34,6 +34,8 @@ Always-on directives loaded for every agent session in the workspace:
 - **Asynchronous Swarms**: Outlines paired subteam couples (Executioner +
   Reviewer), non-blocking Git commit/audit flows, targeted message board
   etiquette, and the multi-family Pro Ultimate Review Gate.
+- **Graphics and UI Wireframes**: Mandates ASCII-art wireframes for all visual
+  or UI layouts, constrained to 80 characters per line.
 
 ### 2. Functional Coder Skill (`skills/functional-coder/`)
 On-demand skill guiding system design and implementation following functional
