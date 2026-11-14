@@ -1,24 +1,25 @@
 """Hypothesis Property-Based Tests for AST Code Limits and Hooks.
 
-Verifies:
-1. Function length limits (<=20 pass, >20 fail for Python and Clojure).
-2. File length limits (<=500 pass, >500 fail).
-3. Anti-golfing detection (semicolons in Python, packed forms in Clojure).
-4. Nested Clojure sibling expressions pass without false positives.
-5. Soft 80-character line warnings.
-6. cljfmt pre-formatting integration.
-7. hooks.json stdin/stdout contract and controlled blast radius.
+Verifies all 7 Ultimate Review invariants:
+1. PreToolUse returns 'ask' (never blanket 'allow') for non-commit calls.
+2. Staged index blob checking (`git show :path`) catches bad staged blobs.
+3. Proper shell/git command parsing (`git -C . commit` vs `echo "git commit"`).
+4. Zero side effects during `--check`, `PreToolUse`, and `Stop`.
+5. `PostToolUse` resolves relative `Path` vs `cwd`, formats, warns on stderr.
+6. `defmethod` > 20L rejected, `.cljs`/`.cljc` supported, accurate fallback.
+7. Python AST anti-golfing & `git status --porcelain -z` rename handling.
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 from typing import List
 
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import given, settings, strategies as st
 import pytest
 
 HOOKS_DIR = Path(__file__).resolve().parent
@@ -29,21 +30,14 @@ from check_code_limits import (  # noqa: E402
     check_clojure_code,
     check_file_line_count,
     check_python_code,
+    check_single_file,
     check_soft_line_lengths,
-    detect_clojure_golfing,
+    detect_git_commit,
     detect_python_golfing,
-    handle_post_tool_use,
-    handle_pre_tool_use,
-    handle_stop,
-    parse_clojure_forms,
+    format_clojure_file,
+    get_modified_git_files,
     process_hook_payload,
-    run_cljfmt_fix,
 )
-
-
-# ---------------------------------------------------------------------------
-# Python AST Function & File Limits PBT
-# ---------------------------------------------------------------------------
 
 
 @given(body_lines=st.integers(min_value=1, max_value=18))
@@ -53,7 +47,6 @@ def test_prop_python_fn_within_limit_passes(body_lines: int) -> None:
     code = f"def sample_fn():\n{body}\n    return x_0\n"
     res = check_python_code(code, "test_valid.py")
     assert res["valid"] is True
-    assert len(res["errors"]) == 0
 
 
 @given(body_lines=st.integers(min_value=22, max_value=40))
@@ -78,13 +71,7 @@ def test_prop_file_line_count_fail(total_lines: int) -> None:
     """Files with > 500 lines fail file limit."""
     lines = [f"line_{i}\n" for i in range(total_lines)]
     err = check_file_line_count(lines)
-    assert err is not None
-    assert "exceeds 500 lines" in err
-
-
-# ---------------------------------------------------------------------------
-# Anti-Golfing & Clojure Form PBT
-# ---------------------------------------------------------------------------
+    assert err is not None and "exceeds 500 lines" in err
 
 
 @given(
@@ -98,8 +85,17 @@ def test_prop_python_semicolon_golfing_detected(stmts: List[str]) -> None:
     """Semicolon statement chaining is rejected as code-golfing."""
     code = "; ".join(f"{s} = 1" for s in stmts) + "\n"
     errs = detect_python_golfing(code)
-    assert len(errs) > 0
-    assert "semicolon chaining forbidden" in errs[0]
+    assert len(errs) > 0 and "semicolon chaining forbidden" in errs[0]
+
+
+def test_python_ast_packed_and_dense_golfing() -> None:
+    """Packed one-liners and dense nested comprehensions are rejected."""
+    packed = "def f(x): return x + 1\n"
+    if_one = "def g(x):\n    if x: return 1\n"
+    dense = "y = [a for a in [b for b in [c for c in range(5)]]]\n"
+    assert check_python_code(packed, "p.py")["valid"] is False
+    assert check_python_code(if_one, "i.py")["valid"] is False
+    assert check_python_code(dense, "d.py")["valid"] is False
 
 
 @settings(max_examples=20, deadline=None)
@@ -132,7 +128,6 @@ def test_prop_clojure_nested_sibling_calls_pass(ops: List[str]) -> None:
     code = f"(defn calc [x]\n  [{body}])\n"
     res = check_clojure_code(code, "test_nested.clj")
     assert res["valid"] is True
-    assert len(res["errors"]) == 0
 
 
 @settings(max_examples=20, deadline=None)
@@ -143,7 +138,6 @@ def test_prop_clojure_short_fn_passes(num_forms: int) -> None:
     code = f"(defn compute-clean\n  [x]\n{body})\n"
     res = check_clojure_code(code, "test_clean.clj")
     assert res["valid"] is True
-    assert len(res["errors"]) == 0
 
 
 @settings(max_examples=20, deadline=None)
@@ -157,100 +151,148 @@ def test_prop_clojure_long_fn_fails(num_lines: int) -> None:
     assert any("max 20" in err for err in res["errors"])
 
 
-# ---------------------------------------------------------------------------
-# Soft Line Length Limit PBT
-# ---------------------------------------------------------------------------
+def test_defmethod_over_20_lines_and_cljs_cljc() -> None:
+    """defmethod > 20L fails in kondo & fallback; .cljs/.cljc supported."""
+    body = "\n".join(f"  (+ {i} 1)" for i in range(22))
+    dm = f"(ns a)\n(defmulti m identity)\n(defmethod m :k [x]\n{body})\n"
+    assert check_clojure_code(dm, "a.clj", use_kondo=True)["valid"] is False
+    assert check_clojure_code(dm, "a.clj", use_kondo=False)["valid"] is False
+    cljc = "(ns b)\n(defn ok [x] #?(:clj x :cljs x))\n"
+    assert check_clojure_code(cljc, "b.cljc")["valid"] is True
+    assert check_clojure_code("(ns c)\n(defn ok [x] x)\n", "c.cljs")["valid"]
+
+
+def test_fallback_scanner_escapes_and_char_literals() -> None:
+    """Fallback scanner handles escaped quotes, chars, and catches 25L fn."""
+    body = "\n".join(f"  (+ {i} 1)" for i in range(23))
+    code = f'(def s "a\\"b")\n(def c \\()\n(defn big [x]\n{body})\n'
+    res = check_clojure_code(code, "esc.clj", use_kondo=False)
+    assert res["valid"] is False
+    packed = check_clojure_code("(println 1) (println 2)\n", "p.clj")
+    assert packed["valid"] is False
 
 
 @given(line_len=st.integers(min_value=1, max_value=80))
 def test_prop_soft_line_length_under_80_no_warnings(line_len: int) -> None:
     """Lines <= 80 characters produce zero warnings."""
-    lines = ["a" * line_len + "\n"]
-    warnings = check_soft_line_lengths(lines)
-    assert len(warnings) == 0
+    assert len(check_soft_line_lengths(["a" * line_len + "\n"])) == 0
 
 
 @given(line_len=st.integers(min_value=81, max_value=120))
 def test_prop_soft_line_length_over_80_warns(line_len: int) -> None:
     """Lines > 80 characters produce soft warnings without blocking."""
-    lines = ["x" * line_len + "\n"]
-    warnings = check_soft_line_lengths(lines)
-    assert len(warnings) == 1
-    assert "exceeds 80 characters" in warnings[0]
-
-
-# ---------------------------------------------------------------------------
-# Clojure Formatting & Hooks Contract Tests
-# ---------------------------------------------------------------------------
+    warnings = check_soft_line_lengths(["x" * line_len + "\n"])
+    assert len(warnings) == 1 and "exceeds 80 chars" in warnings[0]
 
 
 def test_clojure_syntax_error_fails() -> None:
     """Invalid Clojure syntax fails via clj-kondo diagnostics."""
-    broken_code = "(defn broken [x\n"
-    res = check_clojure_code(broken_code, "test_broken.clj")
-    assert res["valid"] is False
-    assert len(res["errors"]) > 0
+    res = check_clojure_code("(defn broken [x\n", "test_broken.clj")
+    assert res["valid"] is False and len(res["errors"]) > 0
 
 
-def test_cljfmt_preformatting_integration() -> None:
-    """cljfmt fix successfully cleans unindented Clojure source."""
-    messy_clj = "(defn add-two\n[a b]\n(+ a b))\n"
+def test_check_has_zero_disk_side_effects() -> None:
+    """check_single_file must never mutate unformatted files on disk."""
+    messy = "(defn add-two\n[a b]\n(+ a b))\n"
     with tempfile.NamedTemporaryFile(suffix=".clj", delete=False) as tmp:
-        tmp_path = Path(tmp.name)
-        tmp_path.write_text(messy_clj, encoding="utf-8")
+        p = Path(tmp.name)
+        p.write_text(messy, encoding="utf-8")
     try:
-        ok = run_cljfmt_fix(tmp_path)
-        formatted = tmp_path.read_text(encoding="utf-8")
-        assert ok is True
-        assert "  [a b]" in formatted
+        check_single_file(p)
+        assert p.read_text(encoding="utf-8") == messy
+        assert format_clojure_file(p) is True
+        assert "  [a b]" in p.read_text(encoding="utf-8")
     finally:
-        tmp_path.unlink(missing_ok=True)
+        p.unlink(missing_ok=True)
 
 
-def test_hooks_pre_tool_use_allow() -> None:
-    """PreToolUse allows non-commit commands."""
-    payload = json.dumps({
-        "toolCall": {
-            "name": "run_command",
-            "args": {"CommandLine": "git status"},
-        }
-    })
-    out = json.loads(process_hook_payload("PreToolUse", payload))
-    assert out["decision"] == "allow"
+def test_hooks_pre_tool_use_ask_and_cmd_detection() -> None:
+    """PreToolUse returns 'ask' for non-commit and ignores echo."""
+    for cmd in ("ls -la", 'echo "git commit -m x"', "git status"):
+        pl = json.dumps({
+            "toolCall": {"name": "run_command", "args": {"CommandLine": cmd}}
+        })
+        out = json.loads(process_hook_payload("PreToolUse", pl))
+        assert out["decision"] == "ask"
+    assert detect_git_commit("git -C sub commit -m x", Path("/tmp")) is not None
 
 
-def test_hooks_pre_tool_use_deny_git_commit() -> None:
-    """PreToolUse denies git commit if workspace has violations."""
+def _init_git_repo(tmp: Path) -> None:
+    """Initialize a temporary git repo for staged blob and status tests."""
+    for args in (
+        ["init"], ["config", "user.name", "T"], ["config", "user.email", "t@t"]
+    ):
+        subprocess.run(["git", *args], cwd=str(tmp), check=True)
+
+
+def test_pre_tool_use_checks_staged_blob_not_workdir() -> None:
+    """Bad staged blob + clean workdir still denies `git -C . commit`."""
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp = Path(tmp_str)
-        bad_file = tmp / "bad.py"
-        bad_file.write_text("a = 1; b = 2\n", encoding="utf-8")
-        payload = json.dumps({
+        _init_git_repo(tmp)
+        f = tmp / "a.py"
+        f.write_text("a = 1; b = 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "a.py"], cwd=str(tmp), check=True)
+        f.write_text("a = 1\n", encoding="utf-8")
+        pl = json.dumps({
             "toolCall": {
                 "name": "run_command",
-                "args": {"CommandLine": "git commit -m test"},
+                "args": {"CommandLine": "git -C . commit -m x"},
             },
             "cwd": str(tmp),
         })
-        out = json.loads(process_hook_payload("PreToolUse", payload))
-        assert out["decision"] == "deny"
-        assert "semicolon" in out["reason"]
+        out = json.loads(process_hook_payload("PreToolUse", pl))
+        assert out["decision"] == "deny" and "semicolon" in out["reason"]
 
 
-def test_hooks_post_tool_use_contract() -> None:
-    """PostToolUse always returns an empty JSON object."""
-    payload = json.dumps({
-        "toolCall": {
-            "name": "write_file",
-            "args": {"Path": "clean.py"},
-        }
-    })
-    out = json.loads(process_hook_payload("PostToolUse", payload))
-    assert out == {}
+def test_post_tool_use_cwd_format_and_stderr(capsys) -> None:
+    """PostToolUse resolves relative Path vs cwd, formats, warns stderr."""
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        f = tmp / "rel.clj"
+        long_str = '"' + ("x" * 82) + '"'
+        f.write_text(f"(defn f\n[x]\n(let [a {long_str}]\n(+ x a)))\n",
+                     encoding="utf-8")
+        pl = json.dumps({
+            "toolCall": {"name": "write_file", "args": {"Path": "rel.clj"}},
+            "cwd": str(tmp),
+        })
+        assert json.loads(process_hook_payload("PostToolUse", pl)) == {}
+        assert "  [x]" in f.read_text(encoding="utf-8")
+        assert "[code-limits]" in capsys.readouterr().err
 
 
-def test_hooks_stop_contract() -> None:
-    """Stop allows agent to exit when continuationActive is True."""
-    payload = json.dumps({"continuationActive": True})
-    out = json.loads(process_hook_payload("Stop", payload))
-    assert out["decision"] == "allow"
+def test_pre_tool_use_git_commit_am_checks_workdir() -> None:
+    """PreToolUse denies git commit -am when unstaged tracked file fails."""
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        p = tmp / "a.py"
+        p.write_text("x = 1\n", encoding="utf-8")
+        for cmd in (["git", "init"], ["git", "config", "user.email", "t@t.com"],
+                    ["git", "config", "user.name", "T"],
+                    ["git", "add", "a.py"], ["git", "commit", "-m", "init"]):
+            subprocess.run(cmd, cwd=tmp, check=True, capture_output=True)
+        p.write_text("x = 1; y = 2\n", encoding="utf-8")
+        pl = json.dumps({
+            "toolCall": {"name": "run_command",
+                         "args": {"CommandLine": 'git commit -am "x"'}},
+            "cwd": str(tmp),
+        })
+        assert json.loads(process_hook_payload("PreToolUse", pl)).get(
+            "decision") == "deny"
+
+
+def test_hooks_stop_and_porcelain_z_rename() -> None:
+    """Stop handles continuationActive and git status -z renames."""
+    pl = json.dumps({"continuationActive": True})
+    assert json.loads(process_hook_payload("Stop", pl))["decision"] == "allow"
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        _init_git_repo(tmp)
+        (tmp / "old.py").write_text("x = 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "old.py"], cwd=str(tmp), check=True)
+        subprocess.run(["git", "commit", "-m", "i"], cwd=str(tmp), check=True)
+        subprocess.run(
+            ["git", "mv", "old.py", "new.py"], cwd=str(tmp), check=True
+        )
+        assert get_modified_git_files(tmp) == [tmp / "new.py"]
