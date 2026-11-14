@@ -38,7 +38,7 @@ Activate this skill whenever:
 | - Executioner (Hydrogen)      |   | - Executioner (Hydrogen)      |
 |   branch: subteam/alpha/work  |   |   branch: subteam/beta/work   |
 |   commits [READY <sha>]       |   |   commits [READY <sha>]       |
-| - Reviewer (Hydrogen)         |   | - Reviewer (Hydrogen)         |
+| - Reviewer (Carbon)           |   | - Reviewer (Carbon)           |
 |   branch: subteam/alpha/review|   |   branch: subteam/beta/review |
 |   audits [PASS|FIX <sha>]     |   |   audits [PASS|FIX <sha>]     |
 | - Shared subteam nREPL port   |   | - Shared subteam nREPL port   |
@@ -49,7 +49,7 @@ Activate this skill whenever:
                             v
 +-----------------------------------------------------------------+
 |                      Ultimate Review Gate                       |
-|   Multi-family Pro Panel: Gemini 4 Hydrogen, Claude Opus 5.5,   |
+|   Multi-family Pro Panel: Gemini 4 Carbon, Claude Opus 5.5,     |
 |                       and GPT-OSS 120B                          |
 +-----------------------------------------------------------------+
 ```
@@ -57,7 +57,7 @@ Activate this skill whenever:
 ### 1. Paired Subteams (Executioner + Reviewer)
 - **Executioner** (`gemini-4-hydrogen-medium`): Rapid, iterative code author.
   Generates implementations, property tests, and granular git commits.
-- **Reviewer / Auditor** (`gemini-4-hydrogen-medium`): Thorough code and
+- **Reviewer / Auditor** (`gemini-4-carbon-medium`): Thorough code and
   schema auditor. Inspects commits, tests properties, and enforces rules.
 
 ### 2. Isolated Git Topologies & Shared nREPL Workflows
