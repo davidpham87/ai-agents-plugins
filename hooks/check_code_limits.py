@@ -23,24 +23,29 @@ import tokenize
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
+def try_tool_format(cmd: Optional[str], args: List[str]) -> bool:
+    """Run formatting tool with captured output if tool is present."""
+    if not cmd:
+        return False
+    try:
+        res = subprocess.run(args, capture_output=True, timeout=10)
+        return res.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        return False
+
+
 def run_cljfmt_fix(file_path: Path) -> bool:
     """Format Clojure file using cljfmt or clojure-lsp fallback."""
     if not file_path.exists():
         return False
-    cmd = shutil.which("cljfmt")
-    if cmd:
-        try:
-            res = subprocess.run([cmd, "fix", str(file_path)], timeout=10)
-            return res.returncode == 0
-        except (subprocess.SubprocessError, OSError):
-            pass
+    cljfmt = shutil.which("cljfmt")
+    if cljfmt and try_tool_format(cljfmt, [cljfmt, "fix", str(file_path)]):
+        return True
     lsp = shutil.which("clojure-lsp")
     if lsp:
-        try:
-            cmd_args = [lsp, "format", "--filenames", str(file_path)]
-            return subprocess.run(cmd_args, timeout=10).returncode == 0
-        except (subprocess.SubprocessError, OSError):
-            pass
+        return try_tool_format(
+            lsp, [lsp, "format", "--filenames", str(file_path)]
+        )
     return False
 
 
@@ -69,7 +74,7 @@ def run_clj_kondo(
         res = subprocess.run(
             args,
             input=content,
-            stdout=subprocess.PIPE,
+            capture_output=True,
             text=True,
             timeout=10,
         )
@@ -343,7 +348,7 @@ def get_staged_git_files(repo_dir: Path) -> Optional[List[Path]]:
     try:
         cmd = ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"]
         res = subprocess.run(
-            cmd, cwd=str(repo_dir), stdout=subprocess.PIPE, text=True, timeout=5
+            cmd, cwd=str(repo_dir), capture_output=True, text=True, timeout=5
         )
         if res.returncode != 0:
             return None
@@ -358,7 +363,7 @@ def get_modified_git_files(repo_dir: Path) -> Optional[List[Path]]:
     try:
         cmd = ["git", "status", "--porcelain"]
         res = subprocess.run(
-            cmd, cwd=str(repo_dir), stdout=subprocess.PIPE, text=True, timeout=5
+            cmd, cwd=str(repo_dir), capture_output=True, text=True, timeout=5
         )
         if res.returncode != 0:
             return None
