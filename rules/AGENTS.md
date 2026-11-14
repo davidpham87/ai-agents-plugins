@@ -20,9 +20,10 @@ Follow functional programming paradigms inspired by Rich Hickey:
   new dispatches and optional keys without removing or tightening existing
   contracts (provide more, require less).
 - Simplicity Score Gate: review evaluations must assess and report an
-  objective Rich Hickey Simplicity Score checking 5 un-complected dimensions:
-  state/time separation, data/behavior decoupling, I/O vs pure logic isolation,
-  mechanism vs policy, and module decoupling. Flag complected braids.
+  objective Rich Hickey Simplicity Score (0-100, gate >= 80/100) checking 5
+  un-complected dimensions: state/time separation, data/behavior decoupling,
+  I/O vs pure logic isolation, mechanism vs policy, and module decoupling.
+  Flag complected braids.
 - REPL-driven development: prefer interactive evaluation via `clj-nrepl-eval`
   (`clj-nrepl-eval -p <port> "..."`) to explore data and verify logic. Always
   use `:reload` when requiring namespaces.
@@ -97,7 +98,8 @@ idle waiting:
     Gemini 4 Carbon, Claude Opus 5.5, and GPT-OSS 120B) to audit logic,
     security, and architectural soundness from contrasting perspectives.
   - Simplicity scoring: panel members must compute and report the Simplicity
-    Score, blocking any code with unnecessary braids or hidden coupling.
+    Score (0-100, gate >= 80/100), blocking any code with unnecessary braids or
+    hidden coupling.
 
 ## 4. Graphics and UI Wireframes
 

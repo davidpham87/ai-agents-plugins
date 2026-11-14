@@ -24,19 +24,22 @@ K=4 increments, 0.05s work latency, 0.05s review latency):
 
 ## Architecture & Functional Methodology
 
-The benchmark (`benchmark_async_vs_sync.py`) adheres strictly to Rich
-Hickey's Clojure and functional programming philosophy:
+The benchmark (`scripts/benchmark_async_vs_sync.py` CLI facade) adheres
+strictly to Rich Hickey's Clojure and functional programming philosophy:
 
 1. **Information as Pure Values**: Configuration, commit events, and audit
    records are modeled as plain, immutable dictionaries and tuples. No stateful
    OOP class hierarchies or mutable object instances.
-2. **Decomplected Pure Logic**: Pure calculation helpers (`pure_calculate_lag`,
-   `pure_aggregate_metrics`, `pure_compute_speedup`, `pure_predict_makespan`,
-   `pure_verify_audit_completeness`,
-   `pure_verify_subteam_ordering`) are isolated from subprocess side effects.
-3. **Imperative Shell Boundary**: Git subprocess invocations (`git init`,
-   `git worktree add`, `git commit`, `git show`, `git merge-tree`) exist only
-   at the outer execution perimeter.
+2. **Decomplected Pure Logic (`scripts/benchmark_pure.py`)**: Pure calculation
+   helpers (`pure_calculate_lag`, `pure_aggregate_metrics`,
+   `pure_compute_speedup`, `pure_predict_makespan`,
+   `pure_verify_audit_completeness`, `pure_verify_subteam_ordering`) live in
+   `scripts/benchmark_pure.py`, isolated from subprocess side effects, and are
+   re-exported via `scripts/benchmark_async_vs_sync.py`.
+3. **Imperative Shell Boundary (`scripts/benchmark_git.py`)**: Git subprocess
+   invocations (`git init`, `git worktree add`, `git commit`, `git show`,
+   `git merge-tree`) live in `scripts/benchmark_git.py` at the outer execution
+   perimeter (re-exported via `scripts/benchmark_async_vs_sync.py`).
 
 ### Concurrency Pipeline Models
 

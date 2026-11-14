@@ -108,6 +108,6 @@ Activate this skill whenever:
 5. [ ] Execute selective tests during rapid inner loop iteration.
 6. [ ] Make granular commits and broadcast `[READY <sha>]` to reviewer.
 7. [ ] Triage reviewer feedback (`[FIX <sha>]`) and apply amendments.
-8. [ ] Audit Simplicity Score (state/time, data/logic, decoupling >= 8/10).
+8. [ ] Audit Simplicity Score (state/time, data/logic, decoupling >= 80/100).
 9. [ ] Convene heterogeneous multi-model Pro panel for the Ultimate Review.
 10. [ ] Validate full test suites and plugin (`agy plugin validate . --strict`).

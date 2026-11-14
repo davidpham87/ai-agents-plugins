@@ -99,22 +99,22 @@ paradigms by engaging Pro-tier models from distinct provider families.
 
 ### The Rich Hickey Simplicity Score Gate
 Both subteam reviewers and the multi-family Pro panel must calculate and
-report an objective Simplicity Score based on *Simple Made Easy*.
+report an objective Simplicity Score (0-100) based on *Simple Made Easy*.
 
-The score rates 5 un-complected architectural dimensions (0 to 2 points each,
-totaling 0 to 10):
-1. **State vs Time** (2 pts): Immutable values and epochal progression; no
+The score rates 5 un-complected architectural dimensions (0 to 20 points each,
+totaling 0 to 100):
+1. **State vs Time** (20 pts): Immutable values and epochal progression; no
    in-place mutation or hidden temporal coupling.
-2. **Data vs Behavior** (2 pts): Plain transparent data structures (maps/sets);
+2. **Data vs Behavior** (20 pts): Plain transparent data structures (maps/sets);
    functions operate over data, avoiding class encapsulation braids.
-3. **I/O vs Pure Logic** (2 pts): Side-effects and I/O isolated cleanly at the
-   system boundaries; computation core consists of pure functions.
-4. **Mechanism vs Policy** (2 pts): General-purpose mechanisms decoupled from
+3. **I/O vs Pure Logic** (20 pts): Side-effects and I/O isolated cleanly at
+   the system boundaries; computation core consists of pure functions.
+4. **Mechanism vs Policy** (20 pts): General-purpose mechanisms decoupled from
    specific domain policies, enabling open composition.
-5. **Module Decoupling** (2 pts): Clean, acyclic module dependencies without
+5. **Module Decoupling** (20 pts): Clean, acyclic module dependencies without
    back-channel or circular imports.
 
-A minimum Simplicity Score of 8/10 with no zero scores in any dimension is
+A minimum Simplicity Score of 80/100 with no zero scores in any dimension is
 mandatory for passing the Ultimate Review Gate. Any braided or complected code
 is returned with a `[FIX <sha>]` tag for un-braiding and simplification.
 
