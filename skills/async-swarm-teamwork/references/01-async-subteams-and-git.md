@@ -11,7 +11,7 @@ to modify identical files simultaneously.
 
 To optimize token efficiency and wall-clock latency, agents are paired into
 specialized subteams:
-- **Executioner** (`gemini-3.8-flash-medium`):
+- **Executioner** (`gemini-4-hydrogen-medium`):
   Optimized for rapid generation, refactoring, and test writing. Authors
   focused increments and makes atomic Git commits.
 - **Reviewer / Auditor** (`gemini-4-hydrogen-medium`):

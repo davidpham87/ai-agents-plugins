@@ -54,7 +54,7 @@ testing to ensure robustness across generated inputs:
 Multi-agent coordination inside swarms must avoid synchronous lockstep and
 idle waiting:
 - Subteam Couple: each feature stream is owned by a paired subteam composed
-  of an Executioner (`gemini-3.8-flash-medium`) and a Reviewer/Auditor
+  of an Executioner (`gemini-4-hydrogen-medium`) and a Reviewer/Auditor
   (`gemini-4-hydrogen-medium`).
 - Controlled Blast Radius:
   - Executioners must strictly scope every commit and change to a minimal,

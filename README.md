@@ -58,7 +58,7 @@ paradigms:
 ### 3. Async Swarm Teamwork Skill (`skills/async-swarm-teamwork/`)
 On-demand operational runbook and toolset for multi-agent swarms:
 - **Subteams & Git (`references/01-async-subteams-and-git.md`)**:
-  Guidelines for Executioner (`gemini-3.8-flash-medium`) and Reviewer
+  Guidelines for Executioner (`gemini-4-hydrogen-medium`) and Reviewer
   (`gemini-4-hydrogen-medium`) couples, `workspace: "share"` isolation,
   dedicated `subteam/<id>/work` branches, and conflict-free pipelines.
 - **Communication & Review (`references/02-communication-and-review.md`)**:

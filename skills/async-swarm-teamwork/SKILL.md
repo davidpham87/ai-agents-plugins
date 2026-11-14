@@ -35,7 +35,7 @@ Activate this skill whenever:
        v                                           v
 +-------------------------------+   +-------------------------------+
 | Subteam Alpha                 |   | Subteam Beta                  |
-| - Executioner (Flash)         |   | - Executioner (Flash)         |
+| - Executioner (Hydrogen)      |   | - Executioner (Hydrogen)      |
 |   branch: subteam/alpha/work  |   |   branch: subteam/beta/work   |
 |   commits [READY <sha>]       |   |   commits [READY <sha>]       |
 | - Reviewer (Hydrogen)         |   | - Reviewer (Hydrogen)         |
@@ -55,7 +55,7 @@ Activate this skill whenever:
 ```
 
 ### 1. Paired Subteams (Executioner + Reviewer)
-- **Executioner** (`gemini-3.8-flash-medium`): Rapid, iterative code author.
+- **Executioner** (`gemini-4-hydrogen-medium`): Rapid, iterative code author.
   Generates implementations, property tests, and granular git commits.
 - **Reviewer / Auditor** (`gemini-4-hydrogen-medium`): Thorough code and
   schema auditor. Inspects commits, tests properties, and enforces rules.
