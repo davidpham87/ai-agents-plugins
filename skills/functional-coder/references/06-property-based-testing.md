@@ -138,6 +138,14 @@ definitions:
 By deriving generators directly from Malli schemas, you ensure tests always
 exercise valid domain data while catching unexpected boundary errors.
 
+### Babashka Global `bb.edn` Note
+
+For Babashka (`bb`) scripts, `metosin/malli`, `org.clojure/test.check`, and
+`org.clojure/spec.alpha` (including `clojure.spec.gen.alpha`) are available
+globally via `~/.babashka/bb.edn` (loaded via `BABASHKA_CLASSPATH`, or with
+`bb --config ~/.babashka/bb.edn --deps-root ~/.babashka`) as well as any
+local project `bb.edn`.
+
 
 ---
 
