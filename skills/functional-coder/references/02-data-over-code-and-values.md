@@ -97,6 +97,12 @@ In all cases, reading a reference type (`@my-atom` or `(deref my-atom)`)
 yields an immutable value snapshot in constant time with **zero locks**.
 Readers never block writers, and writers never block readers.
 
+Because `atom` updates via `swap!` retry under CAS contention, transition
+functions must stay pure and side-effect free; use `swap-vals!` when you
+need `[old new]` to trigger I/O after commit. For `atom` patterns,
+`core.async` CSP coordination, transducers, and `clojure.core.reducers`,
+see [Async, State, Reducers & Transducers](07-async-state-and-transducers.md).
+
 
 ---
 

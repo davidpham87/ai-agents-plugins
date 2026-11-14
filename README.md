@@ -56,7 +56,9 @@ Always-on directives loaded for every agent session in the workspace:
 On-demand skill guiding system design and implementation following functional
 paradigms:
 - Decoupling data from behavior.
-- Designing pure transformation pipelines and transducers.
+- Designing pure transformation pipelines, transducers, and parallel
+  reducers (`r/fold`).
+- Coordinating async flows with `core.async` and managing state with `atom`.
 - Implementing generative property checks and domain schemas.
 
 ### 3. Async Swarm Teamwork Skill (`skills/async-swarm-teamwork/`)

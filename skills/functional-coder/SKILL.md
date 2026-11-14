@@ -3,7 +3,8 @@ name: functional-coder
 description: >-
   Teaches Rich Hickey's Clojure design philosophy, software simplicity,
   immutable value semantics, open polymorphism, schemas a la carte, precise
-  naming, and property-based testing across Clojure and functional Python.
+  naming, core.async, atom state, transducers, reducers, and property-based
+  testing across Clojure and functional Python.
 ---
 
 # Functional Coder
@@ -49,6 +50,12 @@ systems of pure functions that operate on simple, immutable data.
 9. **Rich Hickey Simplicity Score**:
    Objective 100-point metric penalizing complected concerns (state+time,
    data+code, I/O+logic, policy+mechanism, and hidden global coupling).
+10. **Async, Atoms, Reducers & Transducers**:
+   Decomplect concurrency and transformation from context. Use `atom` with
+   pure `swap!` functions for synchronous snapshots, `core.async` channels
+   (`go` vs `thread`) for decoupled async flow, **transducers** for
+   zero-allocation composable recipes (including on channels), and
+   **reducers** (`r/fold`) for parallel fork/join folds over vectors/maps.
 
 ## Progressive Discovery & References
 
@@ -66,6 +73,8 @@ Delve into each principle in depth through dedicated reference guides:
   Etymological grounding, domain clarity, and globally qualified keys.
 - [Property-Based Testing][ref-06]
   Invariants, REPL workflow, selective runs, Hypothesis, test.check.
+- [Async, State, Reducers & Transducers][ref-07]
+  `core.async` CSP, `atom` CAS purity, transducers, and `r/fold` reducers.
 
 [ref-01]: references/01-simplicity-and-hammock-design.md
 [ref-02]: references/02-data-over-code-and-values.md
@@ -73,6 +82,7 @@ Delve into each principle in depth through dedicated reference guides:
 [ref-04]: references/04-schemas-a-la-carte.md
 [ref-05]: references/05-naming-and-semantics.md
 [ref-06]: references/06-property-based-testing.md
+[ref-07]: references/07-async-state-and-transducers.md
 
 ## Practical Examples
 
