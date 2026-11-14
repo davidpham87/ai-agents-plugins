@@ -47,6 +47,30 @@ def pure_make_config(
     }
 
 
+def pure_predict_makespan(
+    num_subteams: int,
+    increments: int,
+    work_sec: float,
+    review_sec: float,
+    serialize_sync: bool = True,
+) -> Tuple[float, float]:
+    """Calculate theoretical makespan for sync and async pipelines.
+
+    Sync makespan:
+    - Serialized teams: M * K * (work + review)
+    - Parallel teams: K * (work + review)
+
+    Async makespan (pipelined work + review with concurrent subteams):
+    - max_m(K * work + review) = K * work + review
+    """
+    if serialize_sync:
+        sync_ms = num_subteams * increments * (work_sec + review_sec)
+    else:
+        sync_ms = increments * (work_sec + review_sec)
+    async_ms = (increments * work_sec) + review_sec
+    return round(sync_ms, 6), round(async_ms, 6)
+
+
 def pure_calculate_lag(commit_time: float, audit_start: float) -> float:
     """Calculate reviewer lag for a single commit."""
     return max(0.0, audit_start - commit_time)
