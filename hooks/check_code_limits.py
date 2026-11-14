@@ -40,6 +40,40 @@ def run_cljfmt_fix(file_path: Path) -> bool:
         return False
 
 
+def build_kondo_args(cmd: str, target: str) -> List[str]:
+    """Construct command line arguments for clj-kondo JSON analysis."""
+    return [
+        cmd,
+        "--lint",
+        target,
+        "--lang",
+        "clj",
+        "--config",
+        "{:output {:format :json} :analysis true}",
+    ]
+
+
+def run_clj_kondo(
+    path: Path, content: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """Run clj-kondo to extract AST analysis and findings JSON."""
+    cmd = shutil.which("clj-kondo")
+    if not cmd:
+        return None
+    try:
+        args = build_kondo_args(cmd, "-" if content is not None else str(path))
+        res = subprocess.run(
+            args,
+            input=content,
+            stdout=subprocess.PIPE,
+            text=True,
+            timeout=10,
+        )
+        return json.loads(res.stdout) if res.stdout.strip() else None
+    except (subprocess.SubprocessError, OSError, json.JSONDecodeError):
+        return None
+
+
 def check_file_line_count(
     lines: Sequence[str], max_lines: int = 500
 ) -> Optional[str]:
@@ -185,22 +219,60 @@ def detect_clojure_golfing(forms: Sequence[Dict[str, Any]]) -> List[str]:
     return violations
 
 
-def check_clojure_code(
-    source_code: str, file_label: str = "<source>"
-) -> Dict[str, Any]:
-    """Analyze Clojure code for hard and soft limits."""
-    lines = source_code.splitlines(keepends=True)
-    hard_errors: List[str] = []
-    file_err = check_file_line_count(lines)
-    if file_err:
-        hard_errors.append(file_err)
-    forms = parse_clojure_forms(source_code)
-    hard_errors.extend(detect_clojure_golfing(forms))
-    hard_errors.extend(check_clojure_fn_lengths(forms))
+def check_kondo_fn_lengths(
+    analysis: Dict[str, Any], max_lines: int = 20
+) -> List[str]:
+    """Check function lengths from clj-kondo var-definitions analysis."""
+    violations: List[str] = []
+    for v in analysis.get("var-definitions", []):
+        def_by = v.get("defined-by", "")
+        if "defn" in def_by or "fn" in def_by:
+            row, end_row = v.get("row", 1), v.get("end-row", 1)
+            length = end_row - row + 1
+            if length > max_lines:
+                violations.append(
+                    f"Clojure function '{v.get('name')}' at line {row} "
+                    f"is {length} lines (max {max_lines})"
+                )
+    return violations
+
+
+def check_kondo_golfing(analysis: Dict[str, Any]) -> List[str]:
+    """Check for multiple var definitions on the same row via clj-kondo."""
+    violations: List[str] = []
+    seen_rows: set[int] = set()
+    for v in analysis.get("var-definitions", []):
+        row = v.get("row")
+        if row in seen_rows:
+            violations.append(
+                f"Line {row}: anti-golfing violation (multiple forms on line)"
+            )
+        seen_rows.add(row)
+    return violations
+
+
+def check_clojure_ast_errors(source: str, label: str) -> List[str]:
+    """Extract Clojure AST errors via clj-kondo or fallback."""
+    kondo_data = run_clj_kondo(Path(label), content=source)
+    if kondo_data and "analysis" in kondo_data:
+        analysis = kondo_data["analysis"]
+        return check_kondo_golfing(analysis) + check_kondo_fn_lengths(analysis)
+    forms = parse_clojure_forms(source)
+    return detect_clojure_golfing(forms) + check_clojure_fn_lengths(forms)
+
+
+def check_clojure_code(source: str, label: str = "<source>") -> Dict[str, Any]:
+    """Analyze Clojure code via clj-kondo or balanced AST fallback."""
+    lines = source.splitlines(keepends=True)
+    errors: List[str] = []
+    err = check_file_line_count(lines)
+    if err:
+        errors.append(err)
+    errors.extend(check_clojure_ast_errors(source, label))
     return {
-        "file": file_label,
-        "valid": len(hard_errors) == 0,
-        "errors": hard_errors,
+        "file": label,
+        "valid": not errors,
+        "errors": errors,
         "warnings": check_soft_line_lengths(lines),
     }
 
