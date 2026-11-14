@@ -98,31 +98,31 @@
 ;; Property 1: Round-trip EDN serialization
 (def prop-roundtrip-edn
   (prop/for-all [order order-gen]
-    (= order (edn/read-string (pr-str order)))))
+                (= order (edn/read-string (pr-str order)))))
 
 ;; Property 2: Invariant: Subtotal is always non-negative
 (def prop-subtotal-non-negative
   (prop/for-all [order order-gen]
-    (let [subtotal (calculate-subtotal order)]
-      (>= subtotal 0.0))))
+                (let [subtotal (calculate-subtotal order)]
+                  (>= subtotal 0.0))))
 
 ;; Property 3: Metamorphic / Oracle check: subtotal matches sum of line items
 (def prop-oracle-subtotal
   (prop/for-all [order order-gen]
-    (let [items (:order/items order)
-          expected (double (reduce (fn [acc it]
-                                     (+ acc (* (:item/price it)
-                                               (:item/qty it))))
-                                   0.0
-                                   items))
-          actual (calculate-subtotal order)]
-      (< (Math/abs (- actual expected)) 0.001))))
+                (let [items (:order/items order)
+                      expected (double (reduce (fn [acc it]
+                                                 (+ acc (* (:item/price it)
+                                                           (:item/qty it))))
+                                               0.0
+                                               items))
+                      actual (calculate-subtotal order)]
+                  (< (Math/abs (- actual expected)) 0.001))))
 
 ;; Property 4: Invariant: Total is greater than or equal to subtotal
 (def prop-total-exceeds-subtotal
   (prop/for-all [order order-gen]
-    (let [summary (calculate-order-total order)]
-      (>= (:order/total summary) (:order/subtotal summary)))))
+                (let [summary (calculate-order-total order)]
+                  (>= (:order/total summary) (:order/subtotal summary)))))
 
 ;; Generator for arbitrary accretive extension keys
 (def accretive-keys-gen
@@ -137,9 +137,9 @@
 (def prop-consumer-contract-non-breaking-evolution
   (prop/for-all [order order-gen
                  extra-keys accretive-keys-gen]
-    (let [evolved-order (merge order extra-keys)]
-      (= (legacy-order-consumer order)
-         (legacy-order-consumer evolved-order)))))
+                (let [evolved-order (merge order extra-keys)]
+                  (= (legacy-order-consumer order)
+                     (legacy-order-consumer evolved-order)))))
 
 (def SimplicitySchema
   [:map
@@ -155,11 +155,11 @@
 ;; Property 6: Simplicity Score invariants (bounds, steps, monotonicity)
 (def prop-simplicity-score-invariants
   (prop/for-all [flags simplicity-gen]
-    (let [score (compute-simplicity-score flags)
-          braided (assoc flags :braid/state-time true)]
-      (and (<= 0 score 100)
-           (zero? (mod score 20))
-           (<= (compute-simplicity-score braided) score)))))
+                (let [score (compute-simplicity-score flags)
+                      braided (assoc flags :braid/state-time true)]
+                  (and (<= 0 score 100)
+                       (zero? (mod score 20))
+                       (<= (compute-simplicity-score braided) score)))))
 
 ;; --- defspec declarations for Clojure Test Suite Integration ---
 
@@ -182,27 +182,32 @@
              (select-keys result [:result :num-tests :pass?]))
     (:pass? result)))
 
+(def all-properties
+  "Declarative registry of property checks in this namespace."
+  [["Round-trip EDN" prop-roundtrip-edn]
+   ["Subtotal non-negative" prop-subtotal-non-negative]
+   ["Oracle subtotal" prop-oracle-subtotal]
+   ["Total >= subtotal" prop-total-exceeds-subtotal]
+   ["Consumer contract evolution"
+    prop-consumer-contract-non-breaking-evolution]
+   ["Simplicity score invariants"
+    prop-simplicity-score-invariants]])
+
+(defn run-named-property!
+  "Runs a single [name property] entry and prints its summary."
+  [[name-str p]]
+  (let [res (tc/quick-check 50 p)]
+    (println (format "  * %s: %s (%d tests)"
+                     name-str
+                     (if (:pass? res) "PASS" "FAIL")
+                     (:num-tests res)))
+    (:pass? res)))
+
 (defn run-all-properties!
   "Runs all property checks in this namespace (full suite gate)."
   []
   (println "Running full PBT suite (Clojure + Malli + test.check)...")
-  (let [props [["Round-trip EDN" prop-roundtrip-edn]
-               ["Subtotal non-negative" prop-subtotal-non-negative]
-               ["Oracle subtotal" prop-oracle-subtotal]
-               ["Total >= subtotal" prop-total-exceeds-subtotal]
-               ["Consumer contract evolution"
-                prop-consumer-contract-non-breaking-evolution]
-               ["Simplicity score invariants"
-                prop-simplicity-score-invariants]]
-        results (mapv (fn [[name-str p]]
-                        (let [res (tc/quick-check 50 p)]
-                          (println (format "  * %s: %s (%d tests)"
-                                           name-str
-                                           (if (:pass? res) "PASS" "FAIL")
-                                           (:num-tests res)))
-                          (:pass? res)))
-                      props)]
-    (every? true? results)))
+  (every? true? (mapv run-named-property! all-properties)))
 
 (defn -main
   "Command-line entry point for running property checks."
